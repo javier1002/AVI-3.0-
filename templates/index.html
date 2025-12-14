@@ -1,5 +1,5 @@
-<!doctype html>
-<html lang="es">
+{% extends "layout.html" %}
+{% block content %}
 <head>
   <meta charset="utf-8">
   <title>AVI – Layout base</title>
@@ -64,9 +64,12 @@
     <!-- luego aquí irá otro invitado; por ahora texto -->
     Invitado 1 (futuro iframe)
   </div>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
   <script>
-    const area = document.getElementById('participantsArea');
+  const socket = io(); // conexión al backend
+
+  const area = document.getElementById('participantsArea');
   let dragging = null;
   let offsetX = 0, offsetY = 0;
 
@@ -89,8 +92,23 @@
   });
 
   document.addEventListener('mouseup', () => {
-    dragging = null;
+    if (!dragging) return;
+
+    // calcular posición final relativa al área
+    const rectArea = area.getBoundingClientRect();
+    const rectBox = dragging.getBoundingClientRect();
+    const x = rectBox.left - rectArea.left;
+    const y = rectBox.top - rectArea.top;
+
+    // enviar solo una vez, al soltar
+    socket.emit('update_position', {
+      id: dragging.id,
+      x: x,
+      y: y
+    });
+
+    dragging = null; // se queda quieto en la última posición
   });
   </script>
 </body>
-</html>
+{% endblock %}
