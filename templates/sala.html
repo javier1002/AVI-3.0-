@@ -1,0 +1,47 @@
+{% extends "panel-header.html" %}
+{% block content %}
+{% set params = "room=" ~ room %}
+{% if password %}{% set params = params ~ "&password=" ~ password %}{% endif %}
+{% set hostUrl  = "https://vdo.ninja/?" ~ params ~ "&director" %}
+{% set guestUrl = "https://vdo.ninja/?" ~ params %}
+
+<h1>Sala {{ room }}</h1>
+<!--botones de la pizarra-->
+<div id="avi-tools">
+  <button type="button" data-mode="move">Mover</button>
+  <button id="btn-draw" data-mode="draw">Dibujar</button>
+  <button type="button" data-mode="pointer">Vara</button>
+</div>
+
+<div id="avi-stage">
+  <!-- 1. Fondo  -->
+  <div id="avi-background" class="avi-layer">
+    <!-- luego aquí pondremos: img, iframe, o el stream de pantalla -->
+  </div>
+
+  <!-- 2. flujos de los videos -->
+  <div id="avi-participants" class="avi-layer">
+  <div id="host" class="participant host" style="left: 40px; top: 40px;">
+    <iframe
+      id="hostFrame"
+      src="{{ host_url }}"
+      allow="camera; microphone; fullscreen; display-capture">
+    </iframe>
+  </div>
+
+  <div id="p1" class="participant" style="left: 420px; top: 40px;">
+    Invitado 1
+  </div>
+</div>
+
+  <!-- 4. Canvas de pizarra / vara (transparente por encima) -->
+  <canvas id="avi-whiteboard"></canvas>
+</div>
+
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/sala_layout.js') }}"></script>
+
+
+
+{% endblock %}

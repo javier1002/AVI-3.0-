@@ -1,37 +1,68 @@
+/* Fondo general */
 body {
   font-family: Arial, sans-serif;
-  background: #FFFFFF;
   color: #000;
-background: #EF3B36;  /* fallback for old browsers */
-background: -webkit-linear-gradient(to right, #FFFFFF, #EF3B36);  /* Chrome 10-25, Safari 5.1-6 */
-background: linear-gradient(to right, #FFFFFF, #EF3B36); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-
+  background: #EF3B36;
+  background: -webkit-linear-gradient(to right, #FFFFFF, #EF3B36);
+  background: linear-gradient(to right, #FFFFFF, #EF3B36);
 }
 
-label {
-  display: block;
-  margin: 8px 0 4px;
-}
-
-input {
-  padding: 6px;
-  width: 260px;
-}
-
-button {
-  margin-top: 10px;
-  padding: 6px 12px;
-}
-
-#videoArea {
+/* Sala / pizarra */
+#avi-stage {
+  position: relative;
+  width: 1280px;   /* o 100% */
+  height: 720px;   /* o 100vh */
   margin-top: 20px;
+  border: 2px solid #444;
+  background: #000;
+  overflow: hidden;
 }
 
-#links {
-  margin-top: 15px;
+/* Capas base (por si luego usas fondo extra) */
+.avi-layer {
+  position: absolute;
+  inset: 0;
 }
 
-.jumbotron{
- /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-background: #FFFFFF
+/* Canvas de pizarra: detrás de las cajas, pero ocupando todo */
+#avi-whiteboard {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  z-index: 1;              /* debajo de las cajas */
+}
+
+/* Área de participantes por encima del canvas */
+#avi-participants {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+#avi-participants .participant {
+  position: absolute;
+  z-index: 2;
+}
+
+/* Cajas de video */
+#avi-participants .participant {
+  position: absolute;
+  width: 260px;
+  height: 150px;
+  background: rgba(10,10,10,0.9);
+  border-radius: 10px;
+  border: 2px solid #00ff88;
+  overflow: hidden;
+  cursor: move;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2; /* mismas que el contenedor */
+}
+
+#avi-participants .participant iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
 }

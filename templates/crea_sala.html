@@ -1,0 +1,61 @@
+<!--Herencia de templates-->
+{% extends "panel-header.html" %}
+{% block content %}
+
+<h1>Configurar Sala Vdo.Ninja</h1>
+
+<form id="roomForm" method="POST" action="{{ url_for('main.ir_sala') }}">
+  <input id="roomId" name="roomId" type="text" placeholder="Nombre de la sala" required>
+  <input type="password" id="password" name="password" placeholder="Contraseña (opcional)">
+  <button type="submit" class="btn btn-primary">
+    Entrar como HOST
+  </button>
+</form>
+
+<!-- Botón para desplegar opciones avanzadas -->
+<button id="toggleOpciones" class="toggle-btn" type="button">
+  <span id="toggleText">Más opciones</span>
+  <span id="toggleIcon">▼</span>
+</button>
+
+<!-- Contenedor del template para opciones avanzadas -->
+<div id="opcionesAvanzadas"></div>
+
+<!-- Template opciones avanzadas -->
+<template id="videoOptionsTemplate">
+  <fieldset>
+    <legend>Configuración de video</legend>
+
+    <label for="quality">Calidad de video</label>
+    <select id="quality" name="quality">
+      <option value="0">Baja (720p)</option>
+      <option value="1">Media (1080p)</option>
+      <option value="2" selected>Alta (2040x1080)</option>
+      <option value="3">Ultra (4K)</option>
+    </select>
+
+    <label for="bitrate">Bitrate máximo (kbps)</label>
+    <input type="number" id="bitrate" name="bitrate" value="2500" min="500" max="10000">
+
+    <label for="codec">Codec de video</label>
+    <select id="codec" name="codec">
+      <option value="h264" selected>H.264 (compatible)</option>
+      <option value="vp8">VP8</option>
+      <option value="vp9">VP9 (mejor calidad)</option>
+    </select>
+  </fieldset>
+
+  <fieldset>
+    <legend>Características</legend>
+
+    <label><input type="checkbox" id="screenshare" name="screenshare" checked> Permitir compartir pantalla</label>
+    <label><input type="checkbox" id="record" name="record"> Habilitar reacciones🎱</label>
+    <label><input type="checkbox" id="stereo" name="stereo" checked> Audio estéreo</label>
+    <label><input type="checkbox" id="effects" name="effects"> Habilitar efectos de video</label>
+  </fieldset>
+</template>
+
+<!--  El script  -->
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
+
+{% endblock %}
