@@ -1,27 +1,25 @@
 {% extends "panel-header.html" %}
 {% block content %}
 
-{# --- CONFIGURACIÓN DE URLS --- #}
+{# --- CONFIGURACIÓN DE URLS --- #}<!--COMENTADO EN JINJA-->
 
 {# 1. Configuración de la Sala Principal (Participantes) #}
 {% set params = "room=" ~ room %}
 {% if password %}{% set params = params ~ "&password=" ~ password %}{% endif %}
 
-{# URL para tu cara (Caja pequeña) #}
+{# URL HOST #}
 {% set hostUrl = "https://vdo.ninja/?" ~ params ~ "&push&autostart&cleanoutput&label=Profesor" %}
 
 {# URL para invitados #}
 {% set guestViewUrl = "https://vdo.ninja/?" ~ params ~ "&view&order=1&cleanoutput&transparent&autoplay&muted&scene" %}
 
-
-{# 2. NUEVO: Configuración del FONDO OBS (Sala Paralela) #}
-{# Creamos un ID único para el fondo: "Matematicas_bg" #}
+{#Configuración del FONDO OBS segunda sala #}
 {% set bgRoom = room ~ "_bg" %}
 
-{# CORRECCIÓN CRÍTICA: #}
-{# &scene: Muestra el video mezclado automáticamente (sin botones de Join) #}
-{# &room: Asegura que entre a la sala correcta #}
-{# &transparent: Para que si OBS manda transparencia, se vea #}
+{#EXPLICACION DE LAS ETIQUETAS #}
+{# &scene: Muestra el video mezclado automáticamente  #}
+{# &room: Asegura que entre a la sala principal#}
+{# &transparent: si OBS manda transparencia se vera #}
 {# &noheader y &nocontrols: Limpieza total #}
 
 {# URL para VER el fondo #}
@@ -29,9 +27,7 @@
 {# &quality=0: Recibe la máxima calidad posible #}
 {% set bgViewUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&scene&autoplay&muted&cleanoutput&noheader&nocontrols&transparent&quality=0" %}
 
-{# URL para EMITIR el fondo (Tú la abres en otra pestaña) #}
-{# Agregamos bitrate alto, resolución forzada y codec VP9 para texto nítido #}
-{# URL para EMITIR el fondo (Tú la abres en otra pestaña) #}
+{# URL para EMITIR el fondo /sala secundaria #}
 {# Agregamos bitrate alto, resolución forzada y codec VP9 para texto nítido #}
 {% set bgPushUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&push&autostart&webcam&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9" %}
 
