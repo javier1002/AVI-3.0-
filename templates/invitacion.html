@@ -1,0 +1,43 @@
+{% extends "panel-header.html" %}
+
+{# --- Bloque para inyectar CSS específico de esta página --- #}
+{% block head_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/invitacion.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="invite-wrapper">
+    <div class="invite-card">
+        <h2 class="invite-title">¿Todo listo para unirte?</h2>
+
+        <div class="room-badge">
+            <small style="color: #666;">Estás entrando a la sala:</small>
+            <span class="room-name">{{ room }}</span>
+        </div>
+
+        <form id="joinForm" action="{{ url_for('main.ir_sala') }}" method="POST">
+
+            <input type="hidden" name="roomId" value="{{ room }}">
+
+            <div class="form-group">
+                <label for="username" class="form-label">Tu Nombre y Apellido:</label>
+                <input type="text" id="username" name="username" class="form-input"
+                       placeholder="Ej: Juan Estudiante" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Contraseña de Sala:</label>
+                <input type="text" id="password" name="password" class="form-input"
+                       placeholder="(Si el profesor te dio una)">
+            </div>
+
+            <button type="submit" class="btn-join" id="btnSubmit">
+                 Unirse
+            </button>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/invitacion.js') }}"></script>
+
+{% endblock %}

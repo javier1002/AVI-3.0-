@@ -1,200 +1,276 @@
 /**
- * sala_ui.js
- * Maneja el DOM, Canvas y Eventos del Mouse.
+ * sala_ui.js - Versión Completa con Reacciones y Gráficos
  */
 
-const participantsArea = document.getElementById('avi-participants');
-const whiteboard = document.getElementById('avi-whiteboard');
-const tools = document.querySelectorAll('#avi-tools button');
-const wctx = whiteboard.getContext('2d');
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("--> sala_ui.js iniciado.");
 
-// Configuración inicial del Canvas
-function resizeCanvas() {
-    whiteboard.width = whiteboard.parentElement.clientWidth;
-    whiteboard.height = whiteboard.parentElement.clientHeight;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas(); // Llamada inicial
+    // --- 1. REFERENCIAS AL DOM ---
+    const participantsArea = document.getElementById('avi-participants');
+    const whiteboard = document.getElementById('avi-whiteboard');
+    const tools = document.querySelectorAll('#avi-tools button');
+    const btnShare = document.getElementById('btn-share');
+    const toast = document.getElementById('toast-notification');
 
-// Variables de estado
-let currentMode = 'move'; // 'move', 'draw', 'pointer'
-let isDragging = false;
-let draggedElement = null;
-let dragOffset = { x: 0, y: 0 };
-let isDrawing = false;
-let lastDrawPos = { x: 0, y: 0 };
+    // Referencias de Reacciones y Stats
+    const btnReactions = document.getElementById('btn-reactions');
+    const reactionPanel = document.getElementById('reaction-panel');
+    const emojisSpans = document.querySelectorAll('#reaction-panel span');
+    const btnStats = document.getElementById('btn-stats');
+    const statsModal = document.getElementById('stats-modal');
+    const btnCloseStats = document.getElementById('btn-close-stats');
+    const chartCanvas = document.getElementById('chart-canvas');
+    let reactionChart = null; // Instancia del gráfico
 
-// ----------------------------------------------------------------------
-// 1. CONTROL DE MODOS (Barra de herramientas)
-// ----------------------------------------------------------------------
-tools.forEach(btn => {
-    btn.addEventListener('click', () => {
-        // Actualizar UI botones
-        tools.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+    // --- 2. CONFIGURACIÓN DEL CANVAS ---
+    let wctx;
+    if (whiteboard) {
+        wctx = whiteboard.getContext('2d');
+        window.addEventListener('resize', resizeCanvas);
+        setTimeout(resizeCanvas, 100);
+    }
+    function resizeCanvas() {
+        if (!whiteboard) return;
+        whiteboard.width = whiteboard.parentElement.clientWidth;
+        whiteboard.height = whiteboard.parentElement.clientHeight;
+    }
 
-        currentMode = btn.dataset.mode;
-        console.log('Modo cambiado a:', currentMode);
+    // --- 3. VARIABLES DE ESTADO ---
+    let currentMode = 'move';
+    let isDragging = false;
+    let draggedElement = null;
+    let dragOffset = { x: 0, y: 0 };
+    let isDrawing = false;
+    let lastDrawPos = { x: 0, y: 0 };
 
-        // LÓGICA IMPORTANTE: CSS pointer-events
-        // Si estamos en 'move', el canvas deja pasar los clics hacia los videos de abajo.
-        // Si estamos en 'draw', el canvas captura los clics.
-        if (currentMode === 'move') {
-            whiteboard.style.pointerEvents = 'none';
-        } else {
-            whiteboard.style.pointerEvents = 'auto';
-            whiteboard.style.cursor = 'crosshair';
+    // --- 4. BARRA DE HERRAMIENTAS (MODOS) ---
+    if (tools.length > 0) {
+        tools.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Ignorar botones de acción (invitar, reacciones, stats)
+                if (['btn-share', 'btn-reactions', 'btn-stats'].includes(btn.id)) return;
+
+                // Actualizar UI
+                tools.forEach(b => {
+                    if (!['btn-share', 'btn-reactions', 'btn-stats'].includes(b.id)) {
+                        b.classList.remove('active');
+                    }
+                });
+                btn.classList.add('active');
+
+                currentMode = btn.dataset.mode;
+
+                // Ajustar puntero
+                if (whiteboard) {
+                    if (currentMode === 'move') {
+                        whiteboard.style.pointerEvents = 'none';
+                    } else {
+                        whiteboard.style.pointerEvents = 'auto';
+                        whiteboard.style.cursor = 'crosshair';
+                    }
+                }
+            });
+        });
+        if (whiteboard) whiteboard.style.pointerEvents = 'none';
+    }
+
+    // --- 5. LOGICA DE ARRASTRE (DRAG & DROP) ---
+    if (participantsArea) {
+        participantsArea.addEventListener('mousedown', (e) => {
+            if (currentMode !== 'move') return;
+            const target = e.target.closest('.participant');
+            if (!target || e.target.tagName.toLowerCase() === 'iframe') return;
+
+            isDragging = true;
+            draggedElement = target;
+            const rect = target.getBoundingClientRect();
+            const parentRect = participantsArea.getBoundingClientRect();
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging && draggedElement && currentMode === 'move') {
+                const parentRect = participantsArea.getBoundingClientRect();
+                let newX = e.clientX - parentRect.left - dragOffset.x;
+                let newY = e.clientY - parentRect.top - dragOffset.y;
+
+                draggedElement.style.left = `${newX}px`;
+                draggedElement.style.top = `${newY}px`;
+
+                if (typeof emitMove === 'function') emitMove(draggedElement.id, newX, newY);
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            draggedElement = null;
+        });
+    }
+
+    // --- 6. LOGICA DE DIBUJO ---
+    if (whiteboard) {
+        whiteboard.addEventListener('mousedown', (e) => {
+            if (currentMode !== 'draw') return;
+            isDrawing = true;
+            const rect = whiteboard.getBoundingClientRect();
+            lastDrawPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        });
+        whiteboard.addEventListener('mousemove', (e) => {
+            if (!isDrawing || currentMode !== 'draw') return;
+            const rect = whiteboard.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            drawLineOnCanvas(lastDrawPos.x, lastDrawPos.y, x, y, true);
+            lastDrawPos = { x, y };
+        });
+        whiteboard.addEventListener('mouseup', () => isDrawing = false);
+        whiteboard.addEventListener('mouseleave', () => isDrawing = false);
+    }
+
+    // Función Global de Dibujo
+    window.drawLineOnCanvas = function(x1, y1, x2, y2, emit = false) {
+        if (!wctx) return;
+        wctx.strokeStyle = '#ffffff';
+        wctx.lineWidth = 2;
+        wctx.lineCap = 'round';
+        wctx.beginPath();
+        wctx.moveTo(x1, y1);
+        wctx.lineTo(x2, y2);
+        wctx.stroke();
+        if (emit && typeof emitDraw === 'function') emitDraw(x1, y1, x2, y2);
+    };
+
+    // Callback de Socket para mover elementos externos
+    window.updateElementPosition = function(id, x, y) {
+        if (isDragging && draggedElement && draggedElement.id === id) return;
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
         }
-    });
-});
+    };
 
-// Inicializar en modo mover
-whiteboard.style.pointerEvents = 'none';
+    // --- 7. LÓGICA DE REACCIONES (NUEVO) ---
 
-
-// ----------------------------------------------------------------------
-// 2. LÓGICA DE ARRASTRAR (DRAG & DROP)
-// ----------------------------------------------------------------------
-// Delegación de eventos: escuchamos en el contenedor padre
-participantsArea.addEventListener('mousedown', (e) => {
-    if (currentMode !== 'move') return;
-
-    // Buscar si clicamos un participante (o su hijo)
-    const target = e.target.closest('.participant');
-
-    // Evitar arrastrar si clicamos dentro del iframe
-    if (!target || e.target.tagName.toLowerCase() === 'iframe') return;
-
-    isDragging = true;
-    draggedElement = target;
-
-    // Calcular offset para que el elemento no "salte" al mouse
-    const rect = target.getBoundingClientRect();
-    const parentRect = participantsArea.getBoundingClientRect();
-
-    dragOffset.x = e.clientX - rect.left;
-    dragOffset.y = e.clientY - rect.top;
-
-    e.preventDefault(); // Evita seleccionar texto
-});
-
-document.addEventListener('mousemove', (e) => {
-    // A. LÓGICA MOVER ELEMENTOS
-    if (isDragging && draggedElement && currentMode === 'move') {
-        const parentRect = participantsArea.getBoundingClientRect();
-
-        let newX = e.clientX - parentRect.left - dragOffset.x;
-        let newY = e.clientY - parentRect.top - dragOffset.y;
-
-        // Actualizar localmente
-        draggedElement.style.left = `${newX}px`;
-        draggedElement.style.top = `${newY}px`;
-
-        // ENVIAR AL SOCKET (Función definida en sala_socket.js)
-        emitMove(draggedElement.id, newX, newY);
+    // Toggle Panel
+    if (btnReactions && reactionPanel) {
+        btnReactions.addEventListener('click', (e) => {
+            e.stopPropagation();
+            reactionPanel.classList.toggle('hidden');
+        });
+        document.addEventListener('click', (e) => {
+            if (!reactionPanel.contains(e.target) && e.target !== btnReactions) {
+                reactionPanel.classList.add('hidden');
+            }
+        });
     }
 
-    // B. LÓGICA DIBUJAR (Si el mouse se mueve sobre el documento y estamos dibujando)
-    if (isDrawing && currentMode === 'draw') {
-        const rect = whiteboard.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        // Dibujar localmente y emitir
-        drawLineOnCanvas(lastDrawPos.x, lastDrawPos.y, x, y, true);
-
-        lastDrawPos = { x, y };
-    }
-});
-
-document.addEventListener('mouseup', () => {
-    isDragging = false;
-    draggedElement = null;
-    isDrawing = false;
-});
-
-// ----------------------------------------------------------------------
-// 3. LÓGICA DE DIBUJO (CANVAS)
-// ----------------------------------------------------------------------
-
-whiteboard.addEventListener('mousedown', (e) => {
-    if (currentMode !== 'draw') return;
-
-    isDrawing = true;
-    const rect = whiteboard.getBoundingClientRect();
-    lastDrawPos.x = e.clientX - rect.left;
-    lastDrawPos.y = e.clientY - rect.top;
-});
-
-/**
- * Función para dibujar una línea.
- * @param {boolean} emit - Si es true, envía el trazo al socket. Si es false, solo dibuja (viene del socket).
- */
-function drawLineOnCanvas(x1, y1, x2, y2, emit = false) {
-    wctx.strokeStyle = '#ffffff'; // Color blanco
-    wctx.lineWidth = 2;
-    wctx.lineCap = 'round';
-    wctx.lineJoin = 'round';
-
-    wctx.beginPath();
-    wctx.moveTo(x1, y1);
-    wctx.lineTo(x2, y2);
-    wctx.stroke();
-
-    if (emit) {
-        emitDraw(x1, y1, x2, y2);
-    }
-}
-
-// ----------------------------------------------------------------------
-// 4. FUNCIONES LLAMADAS DESDE sala_socket.js (CALLBACKS)
-// ----------------------------------------------------------------------
-
-// Esta función es llamada cuando llega un evento 'position_updated' del socket
-window.updateElementPosition = function(id, x, y) {
-    // Evitar moverlo si nosotros mismos lo estamos arrastrando en ese instante
-    if (isDragging && draggedElement && draggedElement.id === id) return;
-
-    const el = document.getElementById(id);
-    if (el) {
-        el.style.left = `${x}px`;
-        el.style.top = `${y}px`;
-    }
-};
-
-// ----------------------------------------------------------------------
-// 5. LÓGICA DE COMPARTIR URL (INVITACIÓN)
-// ----------------------------------------------------------------------
-
-const btnShare = document.getElementById('btn-share');
-const toast = document.getElementById('toast-notification');
-
-if (btnShare) {
-    btnShare.addEventListener('click', () => {
-        // 1. Obtenemos la URL actual del navegador
-        // Esto es inteligente: si usas ngrok, copiará la de ngrok.
-        // Si usas localhost, copiará localhost.
-        const currentUrl = window.location.href;
-
-        // 2. Copiamos al portapapeles
-        navigator.clipboard.writeText(currentUrl).then(() => {
-            showToast("¡Enlace copiado! Envíalo a tu invitado.");
-        }).catch(err => {
-            console.error('Error al copiar: ', err);
-            // Fallback por si el navegador es muy viejo o no tiene permisos
-            prompt("Copia este enlace manualmente:", currentUrl);
+    // Clic en Emoji
+    emojisSpans.forEach(span => {
+        span.addEventListener('click', () => {
+            const emoji = span.innerText;
+            // 1. Mostrar local
+            createFloatingEmoji(emoji);
+            // 2. Enviar a todos
+            if (typeof socket !== 'undefined') {
+                socket.emit("reaction", { room: ROOM_ID, emoji: emoji });
+            }
+            reactionPanel.classList.add('hidden');
         });
     });
-}
 
-// Función para mostrar el mensajito flotante
-function showToast(message) {
-    if (!toast) return;
-    toast.innerText = message;
-    toast.style.visibility = "visible";
+    // Función Global: Crear Emoji Flotante
+    window.createFloatingEmoji = function(emoji) {
+        const el = document.createElement("div");
+        el.className = "floating-emoji";
+        el.innerText = emoji;
+        el.style.left = Math.random() * 80 + 10 + '%'; // Posición aleatoria
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 2800);
+    };
 
-    // Ocultar después de 3 segundos
-    setTimeout(() => {
-        toast.style.visibility = "hidden";
-    }, 3000);
-}
+    // --- 8. LÓGICA DE ESTADÍSTICAS (CHART.JS) ---
+    if (btnStats) {
+        btnStats.addEventListener('click', () => {
+            statsModal.classList.remove('hidden');
+            loadChartData();
+        });
+    }
+    if (btnCloseStats) {
+        btnCloseStats.addEventListener('click', () => {
+            statsModal.classList.add('hidden');
+        });
+    }
+
+    function loadChartData() {
+        // Fetch a la ruta de Flask
+        fetch(`/summary/${ROOM_ID}`)
+            .then(res => res.json())
+            .then(data => renderChart(data))
+            .catch(err => console.error("Error stats:", err));
+    }
+
+    function renderChart(data) {
+        const ctx = chartCanvas.getContext('2d');
+        if (reactionChart) reactionChart.destroy(); // Limpiar anterior
+
+        reactionChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(data),
+                datasets: [{
+                    label: 'Reacciones',
+                    data: Object.values(data),
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+    }
+
+    // --- 9. BOTÓN INVITAR ---
+    if (btnShare) {
+        btnShare.addEventListener('click', (e) => {
+            e.preventDefault();
+            const baseUrl = window.location.origin;
+            const inviteUrl = `${baseUrl}/join?room=${ROOM_ID}`;
+            copiarAlPortapapeles(inviteUrl);
+        });
+    }
+
+    function copierToast(msg) {
+        if (!toast) return alert(msg);
+        toast.innerText = msg;
+        toast.style.visibility = "visible";
+        setTimeout(() => toast.style.visibility = "hidden", 3000);
+    }
+
+    function copiarAlPortapapeles(texto) {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(texto)
+                .then(() => copierToast("¡Link copiado!"))
+                .catch(() => fallbackCopy(texto));
+        } else {
+            fallbackCopy(texto);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed"; ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        try { document.execCommand('copy'); copierToast("¡Link copiado!"); }
+        catch (e) { prompt("Copia:", text); }
+        document.body.removeChild(ta);
+    }
+});

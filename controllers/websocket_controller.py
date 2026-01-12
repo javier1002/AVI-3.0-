@@ -3,37 +3,56 @@ from datetime import datetime, timezone
 from flask import request
 from flask_socketio import emit, join_room, leave_room
 
-# --- ERROR AQUÍ: BORRA ESTA LÍNEA ---
-# from app import socketio  <-- ¡BORRAR ESTO!
-
+from collections import defaultdict
+from flask import request
+from flask_socketio import emit, join_room, leave_room
 logger = logging.getLogger(__name__)
 
+# --- NUEVO: ESTRUCTURAS DE DATOS EN MEMORIA ---
+# room_users: { "sala_matematicas": {"Juan Perez", "Maria Lopez"} }
+room_users = {}
+# sid_map: { "socket_id_xyz": ("sala_matematicas", "Juan Perez") }
+sid_map = {}
 
-# La variable 'socketio' llega como ARGUMENTO aquí abajo vvv
+# hash mapping para guardar logs de reacciones
+reactions_log = defaultdict(lambda: defaultdict(int))
+
+
+
 def init_socket_handlers(socketio):
     """
-    Registra los eventos de WebSocket.
+    Registra los eventos de WebSocket con validación de nombres duplicados.
     """
-
-    # IMPORTANTE: Todos los @socketio.on deben estar INDENTADOS (dentro de esta función)
-    # para usar la variable 'socketio' que recibimos como argumento.
-
-    # -------------------------------------------------------------------------
-    # GESTIÓN DE CONEXIÓN Y SALAS
-    # -------------------------------------------------------------------------
 
     @socketio.on('connect')
     def handle_connect():
         logger.info(f"[connect] Cliente conectado: {request.sid}")
-        emit('connection_response', {
-            'status': 'connected',
-            'sid': request.sid,
-            'message': 'Conexión establecida exitosamente'
-        })
+        emit('connection_response', {'status': 'connected'})
 
     @socketio.on('disconnect')
     def handle_disconnect():
-        logger.info(f"[disconnect] Cliente desconectado: {request.sid}")
+        """
+        Al desconectarse, debemos liberar el nombre para que pueda volver a usarse.
+        """
+        sid = request.sid
+        if sid in sid_map:
+            room, username = sid_map[sid]
+
+            # Borrar al usuario de la lista de la sala
+            if room in room_users and username in room_users[room]:
+                room_users[room].discard(username)  # .discard no da error si no existe
+
+                # Si la sala queda vacía, limpiamos la entrada (opcional)
+                if not room_users[room]:
+                    del room_users[room]
+
+            # Borrar del mapa de sockets
+            del sid_map[sid]
+
+            logger.info(f"[disconnect] {username} salió de {room}. Nombre liberado.")
+
+            # Avisar a los demás que salió
+            emit('user_left', {'username': username}, to=room)
 
     @socketio.on('join_room')
     def handle_join_room(data):
@@ -43,50 +62,60 @@ def init_socket_handlers(socketio):
         if not room:
             return
 
+        # --- NUEVO: VALIDACIÓN DE DUPLICADOS ---
+        # 1. Asegurar que la sala existe en el diccionario
+        if room not in room_users:
+            room_users[room] = set()
+
+        # 2. Verificar si el nombre ya está en uso en ESA sala
+        if username in room_users[room]:
+            logger.warning(f"[RECHAZADO] El nombre '{username}' ya existe en la sala '{room}'")
+
+            # Emitimos error SOLO a este usuario
+            emit('error_duplicate_user', {
+                'message': f"El nombre '{username}' ya está en uso en esta sala. Por favor, usa otro (ej: {username} 2)."
+            }, room=request.sid)
+
+            # Cortamos la ejecución aquí (no lo unimos a la sala)
+            return
+
+            # --- SI PASA LA VALIDACIÓN, CONTINUAMOS ---
+
+        # Guardamos en memoria
+        room_users[room].add(username)
+        sid_map[request.sid] = (room, username)
+
         join_room(room)
 
-        logger.info(f"[join_room] {username} ({request.sid}) se unió a la sala: {room}")
+        logger.info(f"[join_room] {username} se unió a la sala {room}")
 
         emit('user_joined', {
-            'message': f'{username} ha entrado a la sala.',
-            'sid': request.sid
+            'message': f'{username} ha entrado.',
+            'username': username
         }, to=room, include_self=False)
 
-    # -------------------------------------------------------------------------
-    # LÓGICA DE NEGOCIO (Posición y Dibujo)
-    # -------------------------------------------------------------------------
-
+    # ... (El resto de tus eventos: update_position, draw_stroke, etc. siguen igual) ...
     @socketio.on('update_position')
     def handle_update_position(data):
         room = data.get('room')
-        if not room:
-            return
-
-        emit('position_updated', {
-            'id': data.get('id'),
-            'x': data.get('x'),
-            'y': data.get('y'),
-            'sender': request.sid
-        }, to=room, include_self=False)
+        if room:
+            emit('position_updated', data, to=room, include_self=False)
 
     @socketio.on('draw_stroke')
     def handle_draw_stroke(data):
         room = data.get('room')
-        if not room:
-            return
+        if room:
+            emit('draw_stroke', data, to=room, include_self=False)
 
-        emit('draw_stroke', data, to=room, include_self=False)
+        # --- EVENTO: REACCIÓN ---
+    @socketio.on("reaction")
+    def handle_reaction(data):
+        room = data.get("room")
+        emoji = data.get("emoji")
 
-    # -------------------------------------------------------------------------
-    # UTILIDADES
-    # -------------------------------------------------------------------------
+        if room and emoji:
+            # Guardar en el Log (Memoria)
+           reactions_log[room][emoji] += 1
 
-    @socketio.on('position_log')
-    def handle_position_log(data):
-        logger.info(f"[position_log] Data recibida: {data}")
-        emit('position_log_response', {
-            'status': 'received',
-            'timestamp': datetime.now(timezone.utc).isoformat()
-        }, room=request.sid)
-
-    logger.info("Handlers de SocketIO registrados correctamente.")
+            # Reenviar a todos en la sala para la animación
+           emit("show_reaction", {"emoji": emoji}, to=room)

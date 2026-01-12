@@ -1,59 +1,64 @@
 {% extends "panel-header.html" %}
+
+{% block head_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sala.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
 {% block content %}
 
-{# --- CONFIGURACIÓN DE URLS --- #}<!--COMENTADO EN JINJA-->
-
-{# 1. Configuración de la Sala Principal (Participantes) #}
+{# --- 1. CONFIGURACIÓN VDO.NINJA (Backend Jinja) --- #}
 {% set params = "room=" ~ room %}
 {% if password %}{% set params = params ~ "&password=" ~ password %}{% endif %}
 
-{# URL HOST #}
+{# URL HOST (TÚ): Envía video, sin controles admin #}
 {% set hostUrl = "https://vdo.ninja/?" ~ params ~ "&push&autostart&cleanoutput&label=Profesor" %}
 
-{# URL para invitados #}
-{% set guestViewUrl = "https://vdo.ninja/?" ~ params ~ "&view&order=1&cleanoutput&transparent&autoplay&muted&scene" %}
+{# URL INVITADO (ALUMNO): Solo ve, etiqueta dinámica #}
+{% set guestViewUrl = "https://vdo.ninja/?" ~ params ~ "&view&order=1&cleanoutput&transparent&autoplay&muted&scene&label=" ~ username %}
 
-{#Configuración del FONDO OBS segunda sala #}
+{# CONFIGURACIÓN FONDO OBS #}
 {% set bgRoom = room ~ "_bg" %}
-
-{#EXPLICACION DE LAS ETIQUETAS #}
-{# &scene: Muestra el video mezclado automáticamente  #}
-{# &room: Asegura que entre a la sala principal#}
-{# &transparent: si OBS manda transparencia se vera #}
-{# &noheader y &nocontrols: Limpieza total #}
-
-{# URL para VER el fondo #}
-{# &scene: Modo pasivo #}
-{# &quality=0: Recibe la máxima calidad posible #}
+{# Fondo Emisor (OBS): Alta calidad, VP9 #}
+{% set bgPushUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&push&autostart&webcam&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9" %}
+{# Fondo Receptor (TV): Pasivo, sin controles #}
 {% set bgViewUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&scene&autoplay&muted&cleanoutput&noheader&nocontrols&transparent&quality=0" %}
 
-{# URL para EMITIR el fondo /sala secundaria #}
-{# Agregamos bitrate alto, resolución forzada y codec VP9 para texto nítido #}
-{% set bgPushUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&push&autostart&webcam&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9" %}
 
-
-<h1>Sala: {{ room }}</h1>
+{# --- 2. INTERFAZ DE USUARIO --- #}
+<h1>Sala: {{ room }} <small>({{ username }})</small></h1>
 
 <div id="avi-tools">
-  <button type="button" class="active" data-mode="move">Mover</button>
-  <button id="btn-draw" type="button" data-mode="draw">Dibujar</button>
-  <button type="button" data-mode="pointer">Vara</button>
+    <button type="button" class="active" data-mode="move">Mover</button>
+    <button id="btn-draw" type="button" data-mode="draw">Dibujar</button>
+    <button type="button" data-mode="pointer">Vara</button>
 
-  <span style="border-left: 1px solid #666; margin: 0 10px; height: 20px; display: inline-block; vertical-align: middle;"></span>
+    <span class="divider"></span>
 
-  <button id="btn-share" type="button" style="background-color: #28a745; color: white;">🔗 Invitar</button>
+    <button id="btn-share" type="button" class="btn-green">🔗 Invitar</button>
 
-  <a href="{{ bgPushUrl }}" target="_blank" style="text-decoration: none;">
-      <button type="button" style="background-color: #6f42c1; color: white;">📺 Emitir Fondo OBS</button>
-  </a>
+    <a href="{{ bgPushUrl }}" target="_blank" style="text-decoration: none;">
+        <button type="button" class="btn-purple">📺 Emitir Fondo OBS</button>
+    </a>
+
+    <span class="divider"></span>
+
+    <div style="position: relative; display: inline-block;">
+        <button id="btn-reactions" type="button" style="font-size: 1.2rem;">😊</button>
+        <div id="reaction-panel" class="hidden">
+            <span>❤️</span><span>👍</span><span>🎉</span>
+            <span>👏</span><span>😂</span><span>😮</span>
+            <span>😢</span><span>🤔</span><span>👎</span>
+        </div>
+    </div>
+
+    <button id="btn-stats" type="button">📊 Logs</button>
 </div>
 
 <div id="avi-stage">
 
   <div id="avi-background" class="avi-layer">
-      <iframe
-        src="{{ bgViewUrl }}"
-        allow="autoplay; muted"
+      <iframe src="{{ bgViewUrl }}" allow="autoplay; muted"
         style="width: 100%; height: 100%; border: 0; pointer-events: none;">
       </iframe>
   </div>
@@ -73,27 +78,30 @@
 
 </div>
 
-<style>
-    .participant {
-        width: 320px; height: 180px; background: #000; border: 2px solid #555; position: absolute; z-index: 10;
-    }
-    .participant iframe { width: 100%; height: 100%; border: 0; overflow: hidden; pointer-events: auto; }
+<div id="stats-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h3>Estadísticas de Reacciones</h3>
+        <div style="position: relative; height:300px; width:100%">
+            <canvas id="chart-canvas"></canvas>
+        </div>
+        <button id="btn-close-stats" class="btn-red" style="margin-top: 15px;">Cerrar</button>
+    </div>
+</div>
 
-    /* El Host es un poco más grande */
-    #host { width: 480px; height: 270px; border: 2px solid #00ff00; z-index: 15; }
+<div id="toast-notification">Mensaje</div>
 
-    /* Asegurar que el fondo esté detrás de todo */
-    #avi-background {
-        z-index: 0;
-        background-color: #1a1a1a; /* Color de respaldo si OBS falla */
-    }
-</style>
-
+{# --- 5. SCRIPTS DE CONFIGURACIÓN --- #}
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
+    // Configuración inicial enviada desde Flask
     const ROOM_ID = "{{ room }}";
-    const USER_ID = "user_" + Math.floor(Math.random() * 10000);
+    const USER_NAME = "{{ username|default('Invitado') }}";
+    // ID limpio para base de datos (sin números random)
+    const USER_ID = USER_NAME.trim().replace(/\s+/g, '_');
+
+    console.log("Sala iniciada:", ROOM_ID, "| Usuario:", USER_NAME);
 </script>
+
 <script src="{{ url_for('static', filename='js/sala_socket.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sala_ui.js') }}"></script>
 

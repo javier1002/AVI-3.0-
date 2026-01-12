@@ -6,12 +6,32 @@
 const socket = io(); // Se conecta automáticamente al origen
 
 // 1. Al conectarse, unirse a la sala específica
+const socket = io();
+
 socket.on('connect', () => {
-    console.log("Conectado al servidor WebSocket. ID:", socket.id);
+    console.log("Conectado. Solicitando ingreso...");
+    // Enviamos room y username (definidos en sala.html)
     socket.emit('join_room', {
         room: ROOM_ID,
-        username: USER_ID
+        username: USER_NAME
     });
+});
+
+// --- NUEVO: MANEJO DE ERROR POR NOMBRE DUPLICADO ---
+socket.on('error_duplicate_user', (data) => {
+    // 1. Mostrar alerta al usuario
+    alert(" ACCESO DENEGADO:\n" + data.message);
+
+    // 2. Redirigir al usuario al formulario de invitación
+    // Le pasamos el nombre de la sala para que no tenga que escribirlo de nuevo
+    window.location.href = `/join?room=${ROOM_ID}`;
+});
+
+// ... (El resto de tu código: position_updated, draw_stroke, etc.) ...
+socket.on('position_updated', (data) => {
+    if (typeof updateElementPosition === 'function') {
+        updateElementPosition(data.id, data.x, data.y);
+    }
 });
 
 // 2. Escuchar cuando alguien más mueve un objeto

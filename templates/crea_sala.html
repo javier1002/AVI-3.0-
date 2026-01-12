@@ -1,61 +1,125 @@
-<!--Herencia de templates-->
 {% extends "panel-header.html" %}
+
 {% block content %}
+<div style="
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    height: 80vh; 
+    font-family: sans-serif;
+    background-color: #f8f9fa;
+">
+    <div style="
+        background: white; 
+        padding: 40px; 
+        border-radius: 10px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+        width: 100%; 
+        max-width: 400px;
+        text-align: center;
+    ">
+        <h2 style="color: #333; margin-bottom: 20px;">Configurar Sala</h2>
+        
+        <form action="{{ url_for('main.ir_sala') }}" method="POST">
+            
+            <div style="margin-bottom: 15px; text-align: left;">
+                <label for="username" style="display: block; margin-bottom: 5px; font-weight: bold; color:#555;">Tu Nombre (Host):</label>
+                <input type="text" id="username" name="username" placeholder="Ej: Profe Javier" required 
+                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+            </div>
 
-<h1>Configurar Sala Vdo.Ninja</h1>
+            <div style="margin-bottom: 15px; text-align: left;">
+                <label for="roomId" style="display: block; margin-bottom: 5px; font-weight: bold; color:#555;">Nombre de la Sala:</label>
+                <input type="text" id="roomId" name="roomId" placeholder="Ej: Matematicas-101" required 
+                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+            </div>
 
-<form id="roomForm" method="POST" action="{{ url_for('main.ir_sala') }}">
-  <input id="roomId" name="roomId" type="text" placeholder="Nombre de la sala" required>
-  <input type="password" id="password" name="password" placeholder="Contraseña (opcional)">
-  <button type="submit" class="btn btn-primary">
-    Entrar como HOST
-  </button>
-</form>
+            <div style="margin-bottom: 20px; text-align: left;">
+                <label for="password" style="display: block; margin-bottom: 5px; font-weight: bold; color:#555;">Contraseña (Opcional):</label>
+                <input type="text" id="password" name="password" placeholder="Para mayor seguridad"
+                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+            </div>
 
-<!-- Botón para desplegar opciones avanzadas -->
-<button id="toggleOpciones" class="toggle-btn" type="button">
-  <span id="toggleText">Más opciones</span>
-  <span id="toggleIcon">▼</span>
-</button>
+            <button type="submit" style="
+                width: 100%; 
+                padding: 12px; 
+                background-color: #007bff; 
+                color: white; 
+                border: none; 
+                border-radius: 5px; 
+                font-size: 16px; 
+                cursor: pointer;
+                font-weight: bold;
+                transition: background 0.3s;
+            ">
+                🚀 Entrar como HOST
+            </button>
+        </form>
 
-<!-- Contenedor del template para opciones avanzadas -->
-<div id="opcionesAvanzadas"></div>
+        <hr style="margin: 25px 0; border: 0; border-top: 1px solid #eee;">
 
-<!-- Template opciones avanzadas -->
-<template id="videoOptionsTemplate">
-  <fieldset>
-    <legend>Configuración de video</legend>
+        <button type="button" onclick="abrirGoogleCalendar()" style="
+            width: 100%; 
+            padding: 12px; 
+            background-color: white; 
+            color: #4285F4; 
+            border: 2px solid #4285F4; 
+            border-radius: 5px; 
+            font-size: 15px; 
+            cursor: pointer;
+            font-weight: bold;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 10px;
+            transition: background 0.3s;
+        " onmouseover="this.style.background='#f1f8ff'" onmouseout="this.style.background='white'">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg" width="20" alt="Calendar">
+            Agendar en Google Calendar
+        </button>
+        
+        <p style="font-size: 0.8rem; color: #888; margin-top: 10px;">
+            (Se abrirá una pestaña nueva para que elijas la hora e invites alumnos)
+        </p>
 
-    <label for="quality">Calidad de video</label>
-    <select id="quality" name="quality">
-      <option value="0">Baja (720p)</option>
-      <option value="1">Media (1080p)</option>
-      <option value="2" selected>Alta (2040x1080)</option>
-      <option value="3">Ultra (4K)</option>
-    </select>
+    </div>
+</div>
 
-    <label for="bitrate">Bitrate máximo (kbps)</label>
-    <input type="number" id="bitrate" name="bitrate" value="2500" min="500" max="10000">
+<script>
+    function abrirGoogleCalendar() {
+        // 1. Obtener el nombre de la sala del input
+        const roomInput = document.getElementById('roomId');
+        const roomName = roomInput.value.trim();
+        
+        // Validación: Si está vacío, avisar y enfocar
+        if (!roomName) {
+            alert("⚠️ Por favor, escribe un nombre para la sala antes de agendar.");
+            roomInput.focus();
+            roomInput.style.borderColor = "red";
+            return;
+        } else {
+            roomInput.style.borderColor = "#ddd";
+        }
 
-    <label for="codec">Codec de video</label>
-    <select id="codec" name="codec">
-      <option value="h264" selected>H.264 (compatible)</option>
-      <option value="vp8">VP8</option>
-      <option value="vp9">VP9 (mejor calidad)</option>
-    </select>
-  </fieldset>
+        // 2. Construir el Link de Invitación de TU App
+        // window.location.origin detecta automáticamente si estás en localhost o en Render
+        const baseUrl = window.location.origin; 
+        
+        // Usamos encodeURIComponent para asegurar que espacios y tildes pasen bien
+        const inviteLink = `${baseUrl}/join?room=${encodeURIComponent(roomName)}`;
 
-  <fieldset>
-    <legend>Características</legend>
+        // 3. Construir la URL de plantilla de Google Calendar
+        const calendarBase = "https://calendar.google.com/calendar/render?action=TEMPLATE";
+        const titulo = `Clase Virtual: ${roomName}`;
+        
+        // Mensaje que aparecerá en la descripción del evento
+        const detalles = `Hola,\n\nTe invito a unirte a la clase virtual de ${roomName}.\n\n👇 Haz clic en este enlace para entrar:\n${inviteLink}\n\n¡Nos vemos en clase!`;
 
-    <label><input type="checkbox" id="screenshare" name="screenshare" checked> Permitir compartir pantalla</label>
-    <label><input type="checkbox" id="record" name="record"> Habilitar reacciones🎱</label>
-    <label><input type="checkbox" id="stereo" name="stereo" checked> Audio estéreo</label>
-    <label><input type="checkbox" id="effects" name="effects"> Habilitar efectos de video</label>
-  </fieldset>
-</template>
+        // Armamos la URL final
+        const finalUrl = `${calendarBase}&text=${encodeURIComponent(titulo)}&details=${encodeURIComponent(detalles)}`;
 
-<!--  El script  -->
-<script src="{{ url_for('static', filename='app.js') }}" defer></script>
-
+        // 4. Abrir en nueva pestaña
+        window.open(finalUrl, '_blank');
+    }
+</script>
 {% endblock %}
