@@ -26,13 +26,13 @@ def create_app(config_name='default'):
 
     return app
 
-
+app = create_app()
 # ---- punto de entrada ----
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    app = create_app()
+    # app = create_app()
     logger.info("Servidor en http://127.0.0.1:5000")
 
     socketio.run(
