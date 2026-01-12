@@ -1,47 +1,104 @@
 {% extends "panel-header.html" %}
 {% block content %}
+
+{# --- CONFIGURACIÓN DE URLS --- #}
+
+{# 1. Configuración de la Sala Principal (Participantes) #}
 {% set params = "room=" ~ room %}
 {% if password %}{% set params = params ~ "&password=" ~ password %}{% endif %}
-{% set hostUrl  = "https://vdo.ninja/?" ~ params ~ "&director" %}
-{% set guestUrl = "https://vdo.ninja/?" ~ params %}
 
-<h1>Sala {{ room }}</h1>
-<!--botones de la pizarra-->
+{# URL para tu cara (Caja pequeña) #}
+{% set hostUrl = "https://vdo.ninja/?" ~ params ~ "&push&autostart&cleanoutput&label=Profesor" %}
+
+{# URL para invitados #}
+{% set guestViewUrl = "https://vdo.ninja/?" ~ params ~ "&view&order=1&cleanoutput&transparent&autoplay&muted&scene" %}
+
+
+{# 2. NUEVO: Configuración del FONDO OBS (Sala Paralela) #}
+{# Creamos un ID único para el fondo: "Matematicas_bg" #}
+{% set bgRoom = room ~ "_bg" %}
+
+{# CORRECCIÓN CRÍTICA: #}
+{# &scene: Muestra el video mezclado automáticamente (sin botones de Join) #}
+{# &room: Asegura que entre a la sala correcta #}
+{# &transparent: Para que si OBS manda transparencia, se vea #}
+{# &noheader y &nocontrols: Limpieza total #}
+
+{# URL para VER el fondo #}
+{# &scene: Modo pasivo #}
+{# &quality=0: Recibe la máxima calidad posible #}
+{% set bgViewUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&scene&autoplay&muted&cleanoutput&noheader&nocontrols&transparent&quality=0" %}
+
+{# URL para EMITIR el fondo (Tú la abres en otra pestaña) #}
+{# Agregamos bitrate alto, resolución forzada y codec VP9 para texto nítido #}
+{# URL para EMITIR el fondo (Tú la abres en otra pestaña) #}
+{# Agregamos bitrate alto, resolución forzada y codec VP9 para texto nítido #}
+{% set bgPushUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&push&autostart&webcam&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9" %}
+
+
+<h1>Sala: {{ room }}</h1>
+
 <div id="avi-tools">
-  <button type="button" data-mode="move">Mover</button>
-  <button id="btn-draw" data-mode="draw">Dibujar</button>
+  <button type="button" class="active" data-mode="move">Mover</button>
+  <button id="btn-draw" type="button" data-mode="draw">Dibujar</button>
   <button type="button" data-mode="pointer">Vara</button>
+
+  <span style="border-left: 1px solid #666; margin: 0 10px; height: 20px; display: inline-block; vertical-align: middle;"></span>
+
+  <button id="btn-share" type="button" style="background-color: #28a745; color: white;">🔗 Invitar</button>
+
+  <a href="{{ bgPushUrl }}" target="_blank" style="text-decoration: none;">
+      <button type="button" style="background-color: #6f42c1; color: white;">📺 Emitir Fondo OBS</button>
+  </a>
 </div>
 
 <div id="avi-stage">
-  <!-- 1. Fondo  -->
+
   <div id="avi-background" class="avi-layer">
-    <!-- luego aquí pondremos: img, iframe, o el stream de pantalla -->
+      <iframe
+        src="{{ bgViewUrl }}"
+        allow="autoplay; muted"
+        style="width: 100%; height: 100%; border: 0; pointer-events: none;">
+      </iframe>
   </div>
 
-  <!-- 2. flujos de los videos -->
   <div id="avi-participants" class="avi-layer">
-  <div id="host" class="participant host" style="left: 40px; top: 40px;">
-    <iframe
-      id="hostFrame"
-      src="{{ host_url }}"
-      allow="camera; microphone; fullscreen; display-capture">
-    </iframe>
+    <div id="host" class="participant host" style="left: 40px; top: 40px;">
+      <iframe id="hostFrame" src="{{ hostUrl }}" allow="camera; microphone; fullscreen; display-capture"></iframe>
+    </div>
+
+    <div id="p1" class="participant" style="left: 420px; top: 40px;">
+      <iframe src="{{ guestViewUrl }}" allow="autoplay; camera; microphone; fullscreen; display-capture"></iframe>
+      <div class="label-participant">Alumno</div>
+    </div>
   </div>
 
-  <div id="p1" class="participant" style="left: 420px; top: 40px;">
-    Invitado 1
-  </div>
-</div>
-
-  <!-- 4. Canvas de pizarra / vara (transparente por encima) -->
   <canvas id="avi-whiteboard"></canvas>
+
 </div>
 
+<style>
+    .participant {
+        width: 320px; height: 180px; background: #000; border: 2px solid #555; position: absolute; z-index: 10;
+    }
+    .participant iframe { width: 100%; height: 100%; border: 0; overflow: hidden; pointer-events: auto; }
+
+    /* El Host es un poco más grande */
+    #host { width: 480px; height: 270px; border: 2px solid #00ff00; z-index: 15; }
+
+    /* Asegurar que el fondo esté detrás de todo */
+    #avi-background {
+        z-index: 0;
+        background-color: #1a1a1a; /* Color de respaldo si OBS falla */
+    }
+</style>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="{{ url_for('static', filename='js/sala_layout.js') }}"></script>
-
-
+<script>
+    const ROOM_ID = "{{ room }}";
+    const USER_ID = "user_" + Math.floor(Math.random() * 10000);
+</script>
+<script src="{{ url_for('static', filename='js/sala_socket.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sala_ui.js') }}"></script>
 
 {% endblock %}

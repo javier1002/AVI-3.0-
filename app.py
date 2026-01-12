@@ -10,7 +10,7 @@ from controllers.websocket_controller import init_socket_handlers
 # ---- instancia global de socketio (sin app aún) ----
 socketio = SocketIO(cors_allowed_origins="*")
 
-
+# patron factory
 def create_app(config_name='default'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])

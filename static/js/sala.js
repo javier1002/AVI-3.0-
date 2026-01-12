@@ -1,60 +1,47 @@
-const socket = io();
+{% extends "panel-header.html" %}
+{% block content %}
 
-const area = document.getElementById('participantsArea');
-let dragging = null;
-let offsetX = 0, offsetY = 0;
+{% set params = "room=" ~ room %}
+{% if password %}{% set params = params ~ "&password=" ~ password %}{% endif %}
+{% set hostUrl  = "https://vdo.ninja/?" ~ params ~ "&director" %}
+{% set guestUrl = "https://vdo.ninja/?" ~ params %}
 
-document.querySelectorAll('.participant').forEach(box => {
-  box.addEventListener('mousedown', e => {
-    dragging = box;
-    const rect = box.getBoundingClientRect();
-    offsetX = e.clientX - rect.left;
-    offsetY = e.clientY - rect.top;
-  });
-});
+<h1>Sala: {{ room }}</h1>
 
-document.addEventListener('mousemove', e => {
-  if (!dragging) return;
-  const rectArea = area.getBoundingClientRect();
-  const x = e.clientX - rectArea.left - offsetX;
-  const y = e.clientY - rectArea.top - offsetY;
-  dragging.style.left = x + 'px';
-  dragging.style.top = y + 'px';
-});
+<div id="avi-tools">
+  <button type="button" class="active" data-mode="move">Mover</button>
+  <button type="button" data-mode="draw">Dibujar</button>
+  <button type="button" data-mode="pointer">Vara</button>
+</div>
 
-document.addEventListener('mouseup', () => {
-  if (!dragging) return;
+<div id="avi-stage">
+  <div id="avi-background" class="avi-layer"></div>
 
-  const rectArea = area.getBoundingClientRect();
-  const rectBox = dragging.getBoundingClientRect();
-  const x = rectBox.left - rectArea.left;
-  const y = rectBox.top - rectArea.top;
+  <div id="avi-participants" class="avi-layer">
+    <div id="host" class="participant host" style="left: 40px; top: 40px;">
+      <iframe
+        id="hostFrame"
+        src="{{ hostUrl }}" 
+        allow="camera; microphone; fullscreen; display-capture">
+      </iframe>
+    </div>
+    
+    <div id="p1" class="participant" style="left: 420px; top: 40px;">
+      Invitado 1
+    </div>
+  </div>
 
-  socket.emit('update_position', { id: dragging.id, x, y });
-  dragging = null;
+  <canvas id="avi-whiteboard"></canvas>
+</div>
 
- document.addEventListener("DOMContentLoaded", () => {
-  const toggleBtn = document.getElementById("toggleOpciones");
-  const contenedor = document.getElementById("opcionesAvanzadas");
-  const template = document.getElementById("videoOptionsTemplate");
-  const toggleText = document.getElementById("toggleText");
-  const toggleIcon = document.getElementById("toggleIcon");
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
-  let abierto = false;
+<script>
+    const ROOM_ID = "{{ room }}";
+    const USER_ID = "user_" + Math.floor(Math.random() * 1000); // ID temporal para probar
+</script>
 
-  toggleBtn?.addEventListener("click", () => {
-    abierto = !abierto;
+<script src="{{ url_for('static', filename='js/sala_socket.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sala_ui.js') }}"></script>
 
-    if (abierto) {
-      contenedor.innerHTML = "";
-      contenedor.appendChild(template.content.cloneNode(true));
-      toggleText.textContent = "Menos opciones";
-      toggleIcon.textContent = "▲";
-    } else {
-      contenedor.innerHTML = "";
-      toggleText.textContent = "Más opciones";
-      toggleIcon.textContent = "▼";
-    }
-  });
-});
-});
+{% endblock %}

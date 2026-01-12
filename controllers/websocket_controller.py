@@ -1,85 +1,92 @@
 import logging
-from datetime import datetime
-
+from datetime import datetime, timezone
 from flask import request
-from flask_socketio import emit
+from flask_socketio import emit, join_room, leave_room
+
+# --- ERROR AQUÍ: BORRA ESTA LÍNEA ---
+# from app import socketio  <-- ¡BORRAR ESTO!
 
 logger = logging.getLogger(__name__)
 
 
+# La variable 'socketio' llega como ARGUMENTO aquí abajo vvv
 def init_socket_handlers(socketio):
     """
-    Registra todos los handlers de eventos de SocketIO.
-    Debes llamar a esta función después de crear la instancia de socketio.
+    Registra los eventos de WebSocket.
     """
 
-    # ---- LOG DE POSICIONES PERIÓDICO ----
-    @socketio.on('position_log')
-    def handle_position_log(data):
-        logger.info(f"[position_log] positions: {data}")
+    # IMPORTANTE: Todos los @socketio.on deben estar INDENTADOS (dentro de esta función)
+    # para usar la variable 'socketio' que recibimos como argumento.
 
-        emit(
-            'position_log_response',
-            {
-                'status': 'received',
-                'message': f'Log procesado: {len(data)} claves',
-                'timestamp': datetime.utcnow().isoformat()
-            },
-            room=request.sid
-        )
+    # -------------------------------------------------------------------------
+    # GESTIÓN DE CONEXIÓN Y SALAS
+    # -------------------------------------------------------------------------
 
-    # ---- ACTUALIZACIÓN EN TIEMPO REAL DE POSICIÓN ----
-    @socketio.on('update_position')
-    def handle_update_position(data):
-        """
-        Endpoint: update_position - Actualiza posición en tiempo real.
-        data ejemplo: { "id": "box-1", "x": 120, "y": 80 }
-        """
-        logger.info(f"[update_position] recibido: {data}")
-
-        emit(
-            'position_updated',
-            {
-                'id': data.get('id'),
-                'x': data.get('x'),
-                'y': data.get('y'),
-                'sender': request.sid
-            },
-            broadcast=True
-        )
-
-    # ---- DIBUJO EN PIZARRA (TRAZOS) ----
-    @socketio.on('draw_stroke')
-    def handle_draw_stroke(data):
-        """
-        Endpoint: draw_stroke - Propaga un trazo de pizarra.
-        data ejemplo: { x1, y1, x2, y2 } normalizados o en píxeles.
-        """
-        logger.debug(f"[draw_stroke] {data}")
-
-        # Reenvía a todos menos al emisor
-        emit(
-            'draw_stroke',
-            data,
-            broadcast=True,
-            include_self=False
-        )
-
-    # ---- CONEXIÓN / DESCONEXIÓN ----
     @socketio.on('connect')
     def handle_connect():
-        logger.info(f"[connect] Cliente CONECTADO: {request.sid}")
-        emit(
-            'connection_response',
-            {
-                'status': 'connected',
-                'sid': request.sid,
-                'message': 'Conectado al servidor de posiciones'
-            }
-        )
+        logger.info(f"[connect] Cliente conectado: {request.sid}")
+        emit('connection_response', {
+            'status': 'connected',
+            'sid': request.sid,
+            'message': 'Conexión establecida exitosamente'
+        })
 
     @socketio.on('disconnect')
     def handle_disconnect():
-        logger.info(f"[disconnect] Cliente DESCONECTADO: {request.sid}")
+        logger.info(f"[disconnect] Cliente desconectado: {request.sid}")
+
+    @socketio.on('join_room')
+    def handle_join_room(data):
+        room = data.get('room')
+        username = data.get('username', 'Anónimo')
+
+        if not room:
+            return
+
+        join_room(room)
+
+        logger.info(f"[join_room] {username} ({request.sid}) se unió a la sala: {room}")
+
+        emit('user_joined', {
+            'message': f'{username} ha entrado a la sala.',
+            'sid': request.sid
+        }, to=room, include_self=False)
+
+    # -------------------------------------------------------------------------
+    # LÓGICA DE NEGOCIO (Posición y Dibujo)
+    # -------------------------------------------------------------------------
+
+    @socketio.on('update_position')
+    def handle_update_position(data):
+        room = data.get('room')
+        if not room:
+            return
+
+        emit('position_updated', {
+            'id': data.get('id'),
+            'x': data.get('x'),
+            'y': data.get('y'),
+            'sender': request.sid
+        }, to=room, include_self=False)
+
+    @socketio.on('draw_stroke')
+    def handle_draw_stroke(data):
+        room = data.get('room')
+        if not room:
+            return
+
+        emit('draw_stroke', data, to=room, include_self=False)
+
+    # -------------------------------------------------------------------------
+    # UTILIDADES
+    # -------------------------------------------------------------------------
+
+    @socketio.on('position_log')
+    def handle_position_log(data):
+        logger.info(f"[position_log] Data recibida: {data}")
+        emit('position_log_response', {
+            'status': 'received',
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        }, room=request.sid)
 
     logger.info("Handlers de SocketIO registrados correctamente.")
