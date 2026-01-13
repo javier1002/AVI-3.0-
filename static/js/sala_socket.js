@@ -1,72 +1,104 @@
 /**
  * sala_socket.js
- * Maneja la conexión con el servidor Flask-SocketIO.
+ * Maneja la comunicación en tiempo real (WebSockets).
+ * Recibe eventos del servidor y actualiza la UI llamando a funciones globales de sala_ui.js.
  */
 
-const socket = io(); // Se conecta automáticamente al origen
-
-// 1. Al conectarse, unirse a la sala específica
+// 1. INICIALIZAR LA CONEXIÓN
 const socket = io();
 
+// 2. AL CONECTARSE
 socket.on('connect', () => {
-    console.log("Conectado. Solicitando ingreso...");
-    // Enviamos room y username (definidos en sala.html)
+    console.log("🟢 Conectado al servidor WebSocket. ID:", socket.id);
+
+    // Solicitamos entrar a la sala con los datos definidos en sala.html
     socket.emit('join_room', {
         room: ROOM_ID,
         username: USER_NAME
     });
 });
 
-// --- NUEVO: MANEJO DE ERROR POR NOMBRE DUPLICADO ---
+// 3. MANEJO DE ERRORES (Usuario Duplicado)
 socket.on('error_duplicate_user', (data) => {
-    // 1. Mostrar alerta al usuario
-    alert(" ACCESO DENEGADO:\n" + data.message);
-
-    // 2. Redirigir al usuario al formulario de invitación
-    // Le pasamos el nombre de la sala para que no tenga que escribirlo de nuevo
+    alert("⛔ ACCESO DENEGADO:\n" + data.message);
+    // Redirigir al formulario para que se cambie el nombre
     window.location.href = `/join?room=${ROOM_ID}`;
 });
 
-// ... (El resto de tu código: position_updated, draw_stroke, etc.) ...
+// 4. ESCUCHAR EVENTOS DE OTROS USUARIOS
+
+// A. Alguien movió una caja (Sincronización de movimiento)
 socket.on('position_updated', (data) => {
-    if (typeof updateElementPosition === 'function') {
-        updateElementPosition(data.id, data.x, data.y);
+    // data = { id: 'host', x: 150, y: 300 }
+    if (typeof window.updateElementPosition === 'function') {
+        window.updateElementPosition(data.id, data.x, data.y);
     }
 });
 
-// 2. Escuchar cuando alguien más mueve un objeto
-socket.on('position_updated', (data) => {
-    // data = { id, x, y, sender }
-    console.log("Recibido movimiento externo:", data);
-    // Llamamos a una función global que definiremos en la UI
-    if (typeof updateElementPosition === 'function') {
-        updateElementPosition(data.id, data.x, data.y);
-    }
-});
-
-// 3. Escuchar cuando alguien dibuja
+// B. Alguien dibujó en la pizarra
 socket.on('draw_stroke', (data) => {
-    // data = { x1, y1, x2, y2, color... }
-    if (typeof drawLineOnCanvas === 'function') {
-        drawLineOnCanvas(data.x1, data.y1, data.x2, data.y2, false); // false = no emitir de nuevo
+    // data = { x0, y0, x1, y1, color... }
+    if (typeof window.drawLineOnCanvas === 'function') {
+        // El último parámetro 'false' es para NO re-emitir el dibujo (bucle infinito)
+        window.drawLineOnCanvas(data.x0, data.y0, data.x1, data.y1, false);
     }
 });
 
-// ---- FUNCIONES PARA QUE LA UI LAS USE ----
+// C. Alguien envió una reacción (Emoji flotante)
+socket.on('show_reaction', (data) => {
+    // data = { emoji: '❤️' }
+    if (typeof window.createFloatingEmoji === 'function') {
+        window.createFloatingEmoji(data.emoji);
+    }
+});
 
-function emitMove(elementId, x, y) {
+// D. Alguien entró o salió (Notificaciones)
+socket.on('user_joined', (data) => {
+    console.log(data.message);
+    mostrarNotificacion(data.message);
+});
+
+socket.on('user_left', (data) => {
+    console.log("Usuario desconectado:", data.username);
+    mostrarNotificacion(`${data.username} ha salido.`);
+});
+
+
+// 5. FUNCIONES PARA ENVIAR DATOS (Usadas por sala_ui.js)
+
+// Esta función la llama sala_ui.js cuando arrastras algo
+window.emitMove = function(elementId, x, y) {
     socket.emit('update_position', {
         room: ROOM_ID,
         id: elementId,
         x: x,
         y: y
     });
-}
+};
 
-function emitDraw(x1, y1, x2, y2) {
+// Esta función la llama sala_ui.js cuando dibujas
+window.emitDraw = function(x0, y0, x1, y1) {
     socket.emit('draw_stroke', {
         room: ROOM_ID,
-        x1: x1, y1: y1,
-        x2: x2, y2: y2
+        x0: x0,
+        y0: y0,
+        x1: x1,
+        y1: y1
     });
+};
+
+// 6. UTILIDADES INTERNAS
+function mostrarNotificacion(mensaje) {
+    // Si existe la función del Toast en UI, la usamos. Si no, logueamos.
+    const toast = document.getElementById('toast-notification');
+    if (toast) {
+        toast.innerText = mensaje;
+        toast.style.visibility = "visible";
+        setTimeout(() => toast.style.visibility = "hidden", 3000);
+    }
 }
+
+// 7. DESCONEXIÓN
+socket.on('disconnect', () => {
+    console.log("🔴 Desconectado del servidor.");
+});
