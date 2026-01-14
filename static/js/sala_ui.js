@@ -1,5 +1,5 @@
 /**
- * sala_ui.js - Versión Completa con Reacciones y Gráficos
+ * sala_ui.js - Versión Corregida (Sin listeners duplicados)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -16,11 +16,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnReactions = document.getElementById('btn-reactions');
     const reactionPanel = document.getElementById('reaction-panel');
     const emojisSpans = document.querySelectorAll('#reaction-panel span');
+
     const btnStats = document.getElementById('btn-stats');
     const statsModal = document.getElementById('stats-modal');
     const btnCloseStats = document.getElementById('btn-close-stats');
     const chartCanvas = document.getElementById('chart-canvas');
-    let reactionChart = null; // Instancia del gráfico
+    let reactionChart = null;
 
     // --- 2. CONFIGURACIÓN DEL CANVAS ---
     let wctx;
@@ -47,10 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (tools.length > 0) {
         tools.forEach(btn => {
             btn.addEventListener('click', () => {
-                // Ignorar botones de acción (invitar, reacciones, stats)
+                // Ignorar botones de acción
                 if (['btn-share', 'btn-reactions', 'btn-stats'].includes(btn.id)) return;
 
-                // Actualizar UI
+                // Actualizar UI visual
                 tools.forEach(b => {
                     if (!['btn-share', 'btn-reactions', 'btn-stats'].includes(b.id)) {
                         b.classList.remove('active');
@@ -60,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 currentMode = btn.dataset.mode;
 
-                // Ajustar puntero
+                // Ajustar puntero del mouse
                 if (whiteboard) {
                     if (currentMode === 'move') {
                         whiteboard.style.pointerEvents = 'none';
@@ -74,17 +75,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (whiteboard) whiteboard.style.pointerEvents = 'none';
     }
 
-    // --- 5. LOGICA DE ARRASTRE (DRAG & DROP) ---
+    // --- 5. LÓGICA DE ARRASTRE (CON LÍMITES) ---
     if (participantsArea) {
         participantsArea.addEventListener('mousedown', (e) => {
             if (currentMode !== 'move') return;
+
             const target = e.target.closest('.participant');
-            if (!target || e.target.tagName.toLowerCase() === 'iframe') return;
+            if (!target) return;
 
             isDragging = true;
             draggedElement = target;
+
             const rect = target.getBoundingClientRect();
-            const parentRect = participantsArea.getBoundingClientRect();
             dragOffset.x = e.clientX - rect.left;
             dragOffset.y = e.clientY - rect.top;
             e.preventDefault();
@@ -93,8 +95,16 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('mousemove', (e) => {
             if (isDragging && draggedElement && currentMode === 'move') {
                 const parentRect = participantsArea.getBoundingClientRect();
+                const elementRect = draggedElement.getBoundingClientRect();
+
                 let newX = e.clientX - parentRect.left - dragOffset.x;
                 let newY = e.clientY - parentRect.top - dragOffset.y;
+
+                const maxX = parentRect.width - elementRect.width;
+                const maxY = parentRect.height - elementRect.height;
+
+                newX = Math.max(0, Math.min(newX, maxX));
+                newY = Math.max(0, Math.min(newY, maxY));
 
                 draggedElement.style.left = `${newX}px`;
                 draggedElement.style.top = `${newY}px`;
@@ -109,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 6. LOGICA DE DIBUJO ---
+    // --- 6. LÓGICA DE DIBUJO ---
     if (whiteboard) {
         whiteboard.addEventListener('mousedown', (e) => {
             if (currentMode !== 'draw') return;
@@ -145,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Callback de Socket para mover elementos externos
     window.updateElementPosition = function(id, x, y) {
         if (isDragging && draggedElement && draggedElement.id === id) return;
+
         const el = document.getElementById(id);
         if (el) {
             el.style.left = `${x}px`;
@@ -152,46 +163,57 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- 7. LÓGICA DE REACCIONES (NUEVO) ---
+    // --- 7. LÓGICA DE REACCIONES (CORREGIDA - SIN DUPLICADOS) ---
 
-    // Toggle Panel
+    // Toggle Panel (UNA SOLA VEZ)
     if (btnReactions && reactionPanel) {
         btnReactions.addEventListener('click', (e) => {
             e.stopPropagation();
             reactionPanel.classList.toggle('hidden');
         });
+
+        // Cerrar al hacer clic fuera (UNA SOLA VEZ)
         document.addEventListener('click', (e) => {
             if (!reactionPanel.contains(e.target) && e.target !== btnReactions) {
                 reactionPanel.classList.add('hidden');
             }
         });
-    }
 
-    // Clic en Emoji
-    emojisSpans.forEach(span => {
-        span.addEventListener('click', () => {
-            const emoji = span.innerText;
-            // 1. Mostrar local
-            createFloatingEmoji(emoji);
-            // 2. Enviar a todos
-            if (typeof socket !== 'undefined') {
-                socket.emit("reaction", { room: ROOM_ID, emoji: emoji });
+        // DELEGACIÓN DE EVENTOS: Un solo listener para todos los emojis
+        reactionPanel.addEventListener('click', (e) => {
+            // Verificar que el clic fue en un span (emoji)
+            if (e.target.tagName === 'SPAN') {
+                const emoji = e.target.innerText;
+
+                // 1. Mostrar animación local
+                createFloatingEmoji(emoji);
+
+                // 2. Enviar a todos por socket
+                if (typeof socket !== 'undefined' && socket.connected) {
+                    socket.emit("reaction", {
+                        room: ROOM_ID,
+                        emoji: emoji,
+                        username: USER_NAME
+                    });
+                }
+
+                // 3. Cerrar panel
+                reactionPanel.classList.add('hidden');
             }
-            reactionPanel.classList.add('hidden');
         });
-    });
+    }
 
     // Función Global: Crear Emoji Flotante
     window.createFloatingEmoji = function(emoji) {
         const el = document.createElement("div");
         el.className = "floating-emoji";
         el.innerText = emoji;
-        el.style.left = Math.random() * 80 + 10 + '%'; // Posición aleatoria
+        el.style.left = Math.random() * 80 + 10 + '%';
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 2800);
     };
 
-    // --- 8. LÓGICA DE ESTADÍSTICAS (CHART.JS) ---
+    // --- 8. LÓGICA DE ESTADÍSTICAS / LOGS ---
     if (btnStats) {
         btnStats.addEventListener('click', () => {
             statsModal.classList.remove('hidden');
@@ -205,33 +227,64 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadChartData() {
-        // Fetch a la ruta de Flask
         fetch(`/summary/${ROOM_ID}`)
             .then(res => res.json())
-            .then(data => renderChart(data))
-            .catch(err => console.error("Error stats:", err));
+            .then(data => {
+                renderChart(processDataForChart(data));
+            })
+            .catch(err => console.error("Error cargando stats:", err));
     }
 
-    function renderChart(data) {
+    function processDataForChart(logList) {
+        const counts = {};
+
+        if (!logList || !Array.isArray(logList)) return {};
+
+        logList.forEach(entry => {
+            const emoji = entry.emoji;
+            if (counts[emoji]) {
+                counts[emoji]++;
+            } else {
+                counts[emoji] = 1;
+            }
+        });
+        return counts;
+    }
+
+    function renderChart(dataCounts) {
         const ctx = chartCanvas.getContext('2d');
-        if (reactionChart) reactionChart.destroy(); // Limpiar anterior
+        if (reactionChart) reactionChart.destroy();
 
         reactionChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: Object.keys(data),
+                labels: Object.keys(dataCounts),
                 datasets: [{
-                    label: 'Reacciones',
-                    data: Object.values(data),
-                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
+                    label: 'Cantidad de Reacciones',
+                    data: Object.values(dataCounts),
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 206, 86, 0.6)',
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(153, 102, 255, 0.6)'
+                    ],
                     borderWidth: 1
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Total de Reacciones en la Sala' }
+                }
             }
         });
     }

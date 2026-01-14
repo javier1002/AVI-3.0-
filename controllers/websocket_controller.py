@@ -8,14 +8,15 @@ from flask import request
 from flask_socketio import emit, join_room, leave_room
 logger = logging.getLogger(__name__)
 
+from collections import defaultdict
+from datetime import datetime
+
 # --- NUEVO: ESTRUCTURAS DE DATOS EN MEMORIA ---
-# room_users: { "sala_matematicas": {"Juan Perez", "Maria Lopez"} }
 room_users = {}
-# sid_map: { "socket_id_xyz": ("sala_matematicas", "Juan Perez") }
 sid_map = {}
 
-# hash mapping para guardar logs de reacciones
-reactions_log = defaultdict(lambda: defaultdict(int))
+# lista de los de reacciones {'nombre_sala': [ {'user': 'Juan', 'emoji': '❤️', 'time': '10:00'}, ... ] }
+reactions_log = defaultdict(list)
 
 
 
@@ -112,10 +113,18 @@ def init_socket_handlers(socketio):
     def handle_reaction(data):
         room = data.get("room")
         emoji = data.get("emoji")
+        username = data.get("username", "Anónimo")  # Recibimos el nombre
 
         if room and emoji:
-            # Guardar en el Log (Memoria)
-           reactions_log[room][emoji] += 1
+            # 1. Crear registro detallado
+            log_entry = {
+                'user': username,
+                'emoji': emoji,
+                'timestamp': datetime.now().strftime("%H:%M:%S")
+            }
 
-            # Reenviar a todos en la sala para la animación
-           emit("show_reaction", {"emoji": emoji}, to=room)
+            # 2. Guardar en la lista de la sala
+            reactions_log[room].append(log_entry)
+
+            # 3. Reenviar para animación (esto no cambia)
+            emit("show_reaction", {"emoji": emoji}, to=room)

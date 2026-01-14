@@ -1,69 +1,294 @@
-/* Panel de Emojis */
-.hidden { display: none !important; }
+/* =========================================
+   1. ESTRUCTURA PRINCIPAL (ESCENARIO)
+   ========================================= */
+#avi-stage {
+    position: relative;
+    width: 100%;
+    height: 80vh;
+    background: #000;
+    border: 2px solid #333;
+    overflow: hidden;
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
+}
+
+.avi-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#avi-whiteboard {
+    pointer-events: none;
+    z-index: 100;
+}
+
+/* =========================================
+   2. PARTICIPANTES (CAJAS DE VIDEO)
+   ========================================= */
+#avi-participants {
+    z-index: 50;
+}
+
+.participant {
+    position: absolute;
+    width: 320px;
+    height: 240px;
+    background: #222;
+    border: 2px solid #444;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+    cursor: grab;
+    overflow: hidden;
+    border-radius: 6px;
+    transition: border-color 0.2s, transform 0.1s;
+}
+
+.participant:active {
+    cursor: grabbing;
+    border-color: #007bff;
+    transform: scale(1.02);
+    z-index: 1000;
+}
+
+.participant iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    pointer-events: none;
+}
+
+.label-participant {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 5px;
+    text-align: center;
+    font-size: 0.85rem;
+    font-family: sans-serif;
+    font-weight: bold;
+}
+
+.participant.host {
+    border-color: #28a745;
+}
+
+/* =========================================
+   3. BARRA DE HERRAMIENTAS
+   ========================================= */
+#avi-tools {
+    position: relative;
+    z-index: 500;
+    padding: 10px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#avi-tools button {
+    padding: 8px 12px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    background: white;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+#avi-tools button:hover {
+    background: #e2e6ea;
+}
+
+#avi-tools button.active {
+    background: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.btn-green {
+    background-color: #28a745 !important;
+    color: white;
+    border: none;
+}
+.btn-green:hover {
+    background-color: #218838 !important;
+}
+
+.btn-purple {
+    background-color: #6f42c1 !important;
+    color: white;
+    border: none;
+}
+.btn-purple:hover {
+    background-color: #5a32a3 !important;
+}
+
+.btn-red {
+    background-color: #dc3545 !important;
+    color: white;
+    border: none;
+}
+.btn-red:hover {
+    background-color: #c82333 !important;
+}
+
+.divider {
+    border-left: 1px solid #aaa;
+    height: 24px;
+    margin: 0 5px;
+}
+
+/* =========================================
+   4. SISTEMA DE REACCIONES (LATERAL)
+   ========================================= */
+.reaction-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+#btn-reactions {
+    font-size: 1.5rem;
+    padding: 5px 10px;
+    line-height: 1;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+#btn-reactions:hover {
+    background: #f0f0f0;
+}
+
 #reaction-panel {
     position: absolute;
-    bottom: 50px;
-    left: 0;
+    left: 100%;
+    top: 0;
+    margin-left: 12px;
+    z-index: 9999;
     background: white;
     border: 1px solid #ccc;
     border-radius: 8px;
     padding: 10px;
+    width: 140px;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    z-index: 100;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+#reaction-panel.hidden {
+    display: none;
+}
+
+#reaction-panel::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 15px;
+    width: 0;
+    height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-right: 6px solid #ccc;
 }
 
 #reaction-panel span {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     cursor: pointer;
+    text-align: center;
     transition: transform 0.2s;
+    user-select: none;
 }
 
 #reaction-panel span:hover {
     transform: scale(1.3);
 }
 
-/* Animación Emoji Flotante */
 .floating-emoji {
     position: fixed;
-    bottom: 0;
-    font-size: 3rem;
-    pointer-events: none; /* Que no estorbe los clics */
+    bottom: 20px;
+    font-size: 4rem;
+    pointer-events: none;
     z-index: 9999;
-    animation: floatUp 3s ease-out forwards;
+    animation: floatSide 3s ease-out forwards;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
-@keyframes floatUp {
-    0% { transform: translateY(0) scale(0.5); opacity: 1; }
-    50% { opacity: 1; }
-    100% { transform: translateY(-80vh) scale(1.5); opacity: 0; }
+@keyframes floatSide {
+    0% {
+        transform: translateY(0) scale(0.5);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-60vh) translateX(30px) scale(1.5);
+        opacity: 0;
+    }
 }
 
-/* Modal de Estadísticas */
+/* =========================================
+   5. MODAL DE ESTADÍSTICAS / LOGS
+   ========================================= */
 .modal-overlay {
     position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(2px);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 2000;
+    z-index: 10000;
 }
 
 .modal-content {
     background: white;
-    padding: 25px;
+    padding: 30px;
     border-radius: 12px;
     width: 90%;
-    max-width: 500px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    max-width: 600px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
     font-family: sans-serif;
+    position: relative;
 }
 
-/* Utilidad */
+.modal-content h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+/* =========================================
+   6. UTILIDADES Y NOTIFICACIONES
+   ========================================= */
+
 .hidden {
     display: none !important;
+}
+
+#toast-notification {
+    visibility: hidden;
+    min-width: 250px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 4px;
+    padding: 16px;
+    position: fixed;
+    z-index: 10000;
+    left: 50%;
+    bottom: 30px;
+    transform: translateX(-50%);
+    font-size: 17px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }

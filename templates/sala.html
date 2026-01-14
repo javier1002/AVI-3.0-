@@ -2,7 +2,6 @@
 
 {% block head_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sala.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -19,9 +18,7 @@
 
 {# CONFIGURACIÓN FONDO OBS #}
 {% set bgRoom = room ~ "_bg" %}
-{# Fondo Emisor (OBS): Alta calidad, VP9 #}
 {% set bgPushUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&push&autostart&webcam&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9" %}
-{# Fondo Receptor (TV): Pasivo, sin controles #}
 {% set bgViewUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&scene&autoplay&muted&cleanoutput&noheader&nocontrols&transparent&quality=0" %}
 
 
@@ -29,22 +26,23 @@
 <h1>Sala: {{ room }} <small>({{ username }})</small></h1>
 
 <div id="avi-tools">
-    <button type="button" class="active" data-mode="move">Mover</button>
-    <button id="btn-draw" type="button" data-mode="draw">Dibujar</button>
-    <button type="button" data-mode="pointer">Vara</button>
+    <button type="button" class="active" data-mode="move" title="Mover objetos">Mover</button>
+    <button id="btn-draw" type="button" data-mode="draw" title="Dibujar en pantalla">Dibujar</button>
+    <button type="button" data-mode="pointer" title="Señalar">Vara</button>
 
     <span class="divider"></span>
 
     <button id="btn-share" type="button" class="btn-green">🔗 Invitar</button>
 
     <a href="{{ bgPushUrl }}" target="_blank" style="text-decoration: none;">
-        <button type="button" class="btn-purple">📺 Emitir Fondo OBS</button>
+        <button type="button" class="btn-purple">📺 Emitir Fondo</button>
     </a>
 
     <span class="divider"></span>
 
-    <div style="position: relative; display: inline-block;">
-        <button id="btn-reactions" type="button" style="font-size: 1.2rem;">😊</button>
+    <div class="reaction-wrapper">
+        <button id="btn-reactions" type="button" title="Enviar Reacción">😊</button>
+
         <div id="reaction-panel" class="hidden">
             <span>❤️</span><span>👍</span><span>🎉</span>
             <span>👏</span><span>😂</span><span>😮</span>
@@ -52,7 +50,7 @@
         </div>
     </div>
 
-    <button id="btn-stats" type="button">📊 Logs</button>
+    <button id="btn-stats" type="button" title="Ver Estadísticas">📊 Logs</button>
 </div>
 
 <div id="avi-stage">
@@ -64,11 +62,12 @@
   </div>
 
   <div id="avi-participants" class="avi-layer">
-    <div id="host" class="participant host" style="left: 40px; top: 40px;">
+    <div id="host" class="participant host" style="left: 20px; top: 20px;">
       <iframe id="hostFrame" src="{{ hostUrl }}" allow="camera; microphone; fullscreen; display-capture"></iframe>
+      <div class="label-participant">Profesor (Host)</div>
     </div>
 
-    <div id="p1" class="participant" style="left: 420px; top: 40px;">
+    <div id="p1" class="participant" style="left: 360px; top: 20px;">
       <iframe src="{{ guestViewUrl }}" allow="autoplay; camera; microphone; fullscreen; display-capture"></iframe>
       <div class="label-participant">Alumno</div>
     </div>
@@ -80,7 +79,7 @@
 
 <div id="stats-modal" class="modal-overlay hidden">
     <div class="modal-content">
-        <h3>Estadísticas de Reacciones</h3>
+        <h3>Estadísticas de la Clase</h3>
         <div style="position: relative; height:300px; width:100%">
             <canvas id="chart-canvas"></canvas>
         </div>
@@ -90,14 +89,13 @@
 
 <div id="toast-notification">Mensaje</div>
 
-{# --- 5. SCRIPTS DE CONFIGURACIÓN --- #}
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-    // Configuración inicial enviada desde Flask
     const ROOM_ID = "{{ room }}";
     const USER_NAME = "{{ username|default('Invitado') }}";
-    // ID limpio para base de datos (sin números random)
-    const USER_ID = USER_NAME.trim().replace(/\s+/g, '_');
 
     console.log("Sala iniciada:", ROOM_ID, "| Usuario:", USER_NAME);
 </script>
