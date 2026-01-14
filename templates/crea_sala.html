@@ -1,125 +1,86 @@
-{% extends "panel-header.html" %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurar Sala | AVI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/crea_sala.css') }}">
 
-{% block content %}
-<div style="
-    display: flex; 
-    justify-content: center; 
-    align-items: center; 
-    height: 80vh; 
-    font-family: sans-serif;
-    background-color: #f8f9fa;
-">
-    <div style="
-        background: white; 
-        padding: 40px; 
-        border-radius: 10px; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-        width: 100%; 
-        max-width: 400px;
-        text-align: center;
-    ">
-        <h2 style="color: #333; margin-bottom: 20px;">Configurar Sala</h2>
-        
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">AVI 3.0 </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <!-- llamo a la funcion del endpoint -->
+                    <a class="nav-link" href="/">Bienvenida</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="{{ url_for('main.crea_sala') }}">configurar
+                        sala</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.sala') }}">sala</a>
+                </li>
+
+            </ul>
+        </div>
+    </div>
+</nav>
+
+
+<div class="main-wrapper">
+    <div class="card-container">
+        <h2>Configurar Sala</h2>
+
         <form action="{{ url_for('main.ir_sala') }}" method="POST">
-            
-            <div style="margin-bottom: 15px; text-align: left;">
-                <label for="username" style="display: block; margin-bottom: 5px; font-weight: bold; color:#555;">Tu Nombre (Host):</label>
-                <input type="text" id="username" name="username" required
-                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+
+            <div class="form-group">
+                <label for="username"> Nombre (Host):</label>
+                <input type="text" id="username" name="username" placeholder="Nombre" required>
             </div>
 
-            <div style="margin-bottom: 15px; text-align: left;">
-                <label for="roomId" style="display: block; margin-bottom: 5px; font-weight: bold; color:#555;">Nombre de la Sala:</label>
-                <input type="text" id="roomId" name="roomId" placeholder="Ej:prueva AVI" required
-                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+            <div class="form-group">
+                <label for="roomId">Nombre de la Sala:</label>
+                <input type="text" id="roomId" name="roomId" placeholder="Ej: Conferencia" required>
             </div>
 
-            <div style="margin-bottom: 20px; text-align: left;">
-                <label for="password" style="display: block; margin-bottom: 5px; font-weight: bold; color:#555;">Contraseña (Opcional):</label>
-                <input type="password" id="password" name="password"
-                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+            <div class="form-group">
+                <label for="password">Contraseña (Opcional):</label>
+                <input type="password" id="password" name="password" placeholder="Opcional">
             </div>
 
-            <button type="submit" style="
-                width: 100%; 
-                padding: 12px; 
-                background-color: #007bff; 
-                color: white; 
-                border: none; 
-                border-radius: 5px; 
-                font-size: 16px; 
-                cursor: pointer;
-                font-weight: bold;
-                transition: background 0.3s;
-            ">
-                🚀 Entrar como HOST
+            <button type="submit" class="btn-primary">
+                 Entrar como HOST
             </button>
         </form>
 
-        <hr style="margin: 25px 0; border: 0; border-top: 1px solid #eee;">
+        <hr>
 
-        <button type="button" onclick="abrirGoogleCalendar()" style="
-            width: 100%; 
-            padding: 12px; 
-            background-color: white; 
-            color: #4285F4; 
-            border: 2px solid #4285F4; 
-            border-radius: 5px; 
-            font-size: 15px; 
-            cursor: pointer;
-            font-weight: bold;
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 10px;
-            transition: background 0.3s;
-        " onmouseover="this.style.background='#f1f8ff'" onmouseout="this.style.background='white'">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg" width="20" alt="Calendar">
+        <button type="button" id="btn-google-calendar" class="btn-google">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg"
+                 width="20" alt="Calendar">
             Agendar en Google Calendar
         </button>
-        
-        <p style="font-size: 0.8rem; color: #888; margin-top: 10px;">
-            (Se abrirá una pestaña nueva para que elijas la hora e invites alumnos)
-        </p>
+
+
 
     </div>
 </div>
 
-<script>
-    function abrirGoogleCalendar() {
-        // 1. Obtener el nombre de la sala del input
-        const roomInput = document.getElementById('roomId');
-        const roomName = roomInput.value.trim();
-        
-        // Validación: Si está vacío, avisar y enfocar
-        if (!roomName) {
-            alert("⚠️ Por favor, escribe un nombre para la sala antes de agendar.");
-            roomInput.focus();
-            roomInput.style.borderColor = "red";
-            return;
-        } else {
-            roomInput.style.borderColor = "#ddd";
-        }
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-        // 2. Construir el Link de Invitación de TU App
-        // window.location.origin detecta automáticamente si estás en localhost o en Render
-        const baseUrl = window.location.origin; 
-        
-        // Usamos encodeURIComponent para asegurar que espacios y tildes pasen bien
-        const inviteLink = `${baseUrl}/join?room=${encodeURIComponent(roomName)}`;
+<script src="{{ url_for('static', filename='js/crea_sala.js') }}"></script>
 
-        // 3. Construir la URL de plantilla de Google Calendar
-        const calendarBase = "https://calendar.google.com/calendar/render?action=TEMPLATE";
-        const titulo = `Clase Virtual: ${roomName}`;
-        
-        // Mensaje que aparecerá en la descripción del evento
-        const detalles = `Hola,\n\nTe invito a unirte a la clase virtual de ${roomName}.\n\n👇 Haz clic en este enlace para entrar:\n${inviteLink}\n\n¡Nos vemos en clase!`;
-
-        // Armamos la URL final
-        const finalUrl = `${calendarBase}&text=${encodeURIComponent(titulo)}&details=${encodeURIComponent(detalles)}`;
-
-        // 4. Abrir en nueva pestaña
-        window.open(finalUrl, '_blank');
-    }
-</script>
-{% endblock %}
+</body>
+</html>

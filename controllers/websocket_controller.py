@@ -1,28 +1,31 @@
+"""
+Maneja la comunicación WebSocket con diferenciación de HOST y PARTICIPANTES
+"""
+# ==========================================
+# imports necesarios para utilizar websockets
+# ==========================================
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from flask import request
 from flask_socketio import emit, join_room, leave_room
-
 from collections import defaultdict
-from flask import request
-from flask_socketio import emit, join_room, leave_room
+
 logger = logging.getLogger(__name__)
 
-from collections import defaultdict
-from datetime import datetime
+# --- ESTRUCTURAS DE DATOS EN MEMORIA ---
+# {room_id: {'host': {'sid': socket_id, 'username': name}, 'participants': {socket_id: username}}}
+rooms = {}
 
-# --- NUEVO: ESTRUCTURAS DE DATOS EN MEMORIA ---
-room_users = {}
+# Mapa de socket_id -> (room, username, is_host)
 sid_map = {}
 
-# lista de los de reacciones {'nombre_sala': [ {'user': 'Juan', 'emoji': '❤️', 'time': '10:00'}, ... ] }
+# Log de reacciones: {'nombre_sala': [{'user': 'Juan', 'emoji': '❤️', 'time': '10:00'}, ...]}
 reactions_log = defaultdict(list)
-
 
 
 def init_socket_handlers(socketio):
     """
-    Registra los eventos de WebSocket con validación de nombres duplicados.
+    Registra los eventos de WebSocket con validación de HOST y PARTICIPANTES
     """
 
     @socketio.on('connect')
@@ -33,87 +36,183 @@ def init_socket_handlers(socketio):
     @socketio.on('disconnect')
     def handle_disconnect():
         """
-        Al desconectarse, debemos liberar el nombre para que pueda volver a usarse.
+        Al desconectarse, liberar el espacio del usuario (host o participante)
         """
         sid = request.sid
-        if sid in sid_map:
-            room, username = sid_map[sid]
 
-            # Borrar al usuario de la lista de la sala
-            if room in room_users and username in room_users[room]:
-                room_users[room].discard(username)  # .discard no da error si no existe
+        if sid not in sid_map:
+            return
 
-                # Si la sala queda vacía, limpiamos la entrada (opcional)
-                if not room_users[room]:
-                    del room_users[room]
+        room, username, is_host = sid_map[sid]
 
-            # Borrar del mapa de sockets
-            del sid_map[sid]
+        # Si era el HOST
+        if is_host and room in rooms:
+            if rooms[room]['host'] and rooms[room]['host']['sid'] == sid:
+                rooms[room]['host'] = None
+                logger.info(f"[disconnect] HOST {username} salió de {room}")
 
-            logger.info(f"[disconnect] {username} salió de {room}. Nombre liberado.")
+                # Notificar que el host salió
+                emit('host_left', {
+                    'username': username,
+                    'message': f'El host {username} ha salido.'
+                }, to=room)
 
-            # Avisar a los demás que salió
-            emit('user_left', {'username': username}, to=room)
+        # Si era PARTICIPANTE
+        elif not is_host and room in rooms:
+            if sid in rooms[room]['participants']:
+                del rooms[room]['participants'][sid]
+                logger.info(f"[disconnect] INVITADO {username} salió de {room}")
+
+                emit('user_left', {
+                    'username': username,
+                    'socket_id': sid
+                }, to=room)
+
+        # Limpiar del mapa
+        del sid_map[sid]
+
+        # Limpiar sala vacía
+        if room in rooms:
+            if not rooms[room]['host'] and not rooms[room]['participants']:
+                del rooms[room]
+                logger.info(f"[disconnect] Sala {room} eliminada (vacía)")
 
     @socketio.on('join_room')
     def handle_join_room(data):
+        """
+        Usuario se une a la sala como HOST o PARTICIPANTE
+        """
         room = data.get('room')
         username = data.get('username', 'Anónimo')
+        is_host = data.get('is_host', False)
+        sid = request.sid
 
         if not room:
+            emit('error', {'message': 'Sala no especificada'})
             return
 
-        # --- NUEVO: VALIDACIÓN DE DUPLICADOS ---
-        # 1. Asegurar que la sala existe en el diccionario
-        if room not in room_users:
-            room_users[room] = set()
+        # Inicializar sala si no existe
+        if room not in rooms:
+            rooms[room] = {
+                'host': None,
+                'participants': {}
+            }
 
-        # 2. Verificar si el nombre ya está en uso en ESA sala
-        if username in room_users[room]:
-            logger.warning(f"[RECHAZADO] El nombre '{username}' ya existe en la sala '{room}'")
+        # --- LÓGICA PARA HOST ---
+        if is_host:
+            # Verificar si ya hay un host
+            if rooms[room]['host'] is not None:
+                logger.warning(f"[RECHAZADO] Ya hay un HOST en {room}")
+                emit('error_duplicate_host', {
+                    'message': 'Ya hay un host en esta sala. Solo puede haber uno.'
+                }, room=sid)
+                return
 
-            # Emitimos error SOLO a este usuario
-            emit('error_duplicate_user', {
-                'message': f"El nombre '{username}' ya está en uso en esta sala. Por favor, usa otro (ej: {username} 2)."
-            }, room=request.sid)
+            # Asignar como host
+            rooms[room]['host'] = {
+                'sid': sid,
+                'username': username
+            }
+            sid_map[sid] = (room, username, True)
+            join_room(room)
 
-            # Cortamos la ejecución aquí (no lo unimos a la sala)
-            return
+            logger.info(f"[join_room] HOST {username} ({sid}) entró a {room}")
 
-            # --- SI PASA LA VALIDACIÓN, CONTINUAMOS ---
+            # Enviar lista de participantes actuales al host
+            participants_list = [
+                {'socket_id': s, 'username': u}
+                for s, u in rooms[room]['participants'].items()
+            ]
 
-        # Guardamos en memoria
-        room_users[room].add(username)
-        sid_map[request.sid] = (room, username)
+            emit('joined_as_host', {
+                'message': f'Bienvenido como HOST, {username}',
+                'room': room
+            })
 
-        join_room(room)
+            emit('room_users', {'users': participants_list})
 
-        logger.info(f"[join_room] {username} se unió a la sala {room}")
+            # Notificar a participantes que el host llegó
+            emit('host_joined', {
+                'username': username,
+                'socket_id': sid
+            }, to=room, include_self=False)
 
-        emit('user_joined', {
-            'message': f'{username} ha entrado.',
-            'username': username
-        }, to=room, include_self=False)
+        # --- LÓGICA PARA PARTICIPANTE ---
+        else:
+            # Verificar nombre duplicado entre participantes
+            existing_names = list(rooms[room]['participants'].values())
+            if username in existing_names:
+                logger.warning(f"[RECHAZADO] Nombre '{username}' duplicado en {room}")
+                emit('error_duplicate_user', {
+                    'message': f"El nombre '{username}' ya está en uso. Usa otro (ej: {username}2)."
+                }, room=sid)
+                return
 
-    # ... (El resto de tus eventos: update_position, draw_stroke, etc. siguen igual) ...
+            # Agregar como participante
+            rooms[room]['participants'][sid] = username
+            sid_map[sid] = (room, username, False)
+            join_room(room)
+
+            logger.info(f"[join_room] PARTICIPANTE {username} ({sid}) entró a {room}")
+
+            emit('joined_as_participant', {
+                'message': f'Bienvenido, {username}',
+                'room': room
+            })
+
+            # Enviar info del host si existe
+            if rooms[room]['host']:
+                emit('host_info', {
+                    'socket_id': rooms[room]['host']['sid'],
+                    'username': rooms[room]['host']['username']
+                })
+
+            # Enviar lista de otros participantes
+            other_participants = [
+                {'socket_id': s, 'username': u}
+                for s, u in rooms[room]['participants'].items()
+                if s != sid
+            ]
+            emit('room_users', {'users': other_participants})
+
+            # Notificar a todos
+            emit('user_joined', {
+                'username': username,
+                'socket_id': sid,
+                'message': f'{username} se ha unido.'
+            }, to=room, include_self=False)
+
     @socketio.on('update_position')
     def handle_update_position(data):
+        """Sincronizar movimiento de cajas"""
         room = data.get('room')
         if room:
-            emit('position_updated', data, to=room, include_self=False)
+            emit('position_updated', {
+                'id': data.get('id'),
+                'x': data.get('x'),
+                'y': data.get('y')
+            }, to=room, include_self=False)
 
     @socketio.on('draw_stroke')
     def handle_draw_stroke(data):
+        """Sincronizar dibujos en la pizarra"""
         room = data.get('room')
         if room:
-            emit('draw_stroke', data, to=room, include_self=False)
+            emit('draw_stroke', {
+                'x0': data.get('x0'),
+                'y0': data.get('y0'),
+                'x1': data.get('x1'),
+                'y1': data.get('y1')
+            }, to=room, include_self=False)
 
-        # --- EVENTO: REACCIÓN ---
-    @socketio.on("reaction")
+    @socketio.on('reaction')
     def handle_reaction(data):
-        room = data.get("room")
-        emoji = data.get("emoji")
-        username = data.get("username", "Anónimo")  # Recibimos el nombre
+        """
+        Manejar reacciones de emojis con log detallado
+        """
+        room = data.get('room')
+        emoji = data.get('emoji')
+        username = data.get('username', 'Anónimo')
 
         if room and emoji:
             # 1. Crear registro detallado
@@ -123,8 +222,55 @@ def init_socket_handlers(socketio):
                 'timestamp': datetime.now().strftime("%H:%M:%S")
             }
 
-            # 2. Guardar en la lista de la sala
+            # 2. Guardar en el log
             reactions_log[room].append(log_entry)
 
-            # 3. Reenviar para animación (esto no cambia)
-            emit("show_reaction", {"emoji": emoji}, to=room)
+            logger.info(f"[reaction] {username} envió {emoji} en {room}")
+
+            # 3. Reenviar a todos (incluyendo al emisor para el log)
+            emit('show_reaction', {
+                'emoji': emoji,
+                'username': username
+            }, to=room)
+
+    @socketio.on('get_room_info')
+    def handle_get_room_info(data):
+        """Obtener información completa de la sala"""
+        room = data.get('room')
+
+        if room not in rooms:
+            emit('room_info', {
+                'host': None,
+                'participants': [],
+                'total': 0
+            })
+            return
+
+        room_data = rooms[room]
+
+        participants_list = [
+            {'socket_id': s, 'username': u}
+            for s, u in room_data['participants'].items()
+        ]
+
+        emit('room_info', {
+            'host': room_data['host'],
+            'participants': participants_list,
+            'total': len(participants_list) + (1 if room_data['host'] else 0)
+        })
+
+    @socketio.on('get_reactions_log')
+    def handle_get_reactions_log(data):
+        """Obtener el log de reacciones de una sala"""
+        room = data.get('room')
+
+        if room in reactions_log:
+            emit('reactions_log', {
+                'room': room,
+                'reactions': reactions_log[room]
+            })
+        else:
+            emit('reactions_log', {
+                'room': room,
+                'reactions': []
+            })

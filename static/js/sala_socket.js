@@ -1,78 +1,130 @@
-/**
- * sala_socket.js
- * Maneja la comunicación en tiempo real (WebSockets).
- * Recibe eventos del servidor y actualiza la UI llamando a funciones globales de sala_ui.js.
- */
-
-// 1. INICIALIZAR LA CONEXIÓN
 const socket = io();
+// Variable para guardar mi socket_id
+let MY_SOCKET_ID = null;
 
-// 2. AL CONECTARSE
 socket.on('connect', () => {
-    console.log("✅ Conectado al servidor WebSocket. ID:", socket.id);
+    console.log("Conectado al servidor WebSocket. ID:", socket.id);
+    MY_SOCKET_ID = socket.id;
 
-    // Solicitamos entrar a la sala con los datos definidos en sala.html
     socket.emit('join_room', {
         room: ROOM_ID,
-        username: USER_NAME
+        username: USER_NAME,
+        is_host: IS_HOST
     });
 });
 
-// 3. MANEJO DE ERRORES (Usuario Duplicado)
 socket.on('error_duplicate_user', (data) => {
-    alert("⛔ ACCESO DENEGADO:\n" + data.message);
+    alert("ACCESO DENEGADO:\n" + data.message);
     window.location.href = `/join?room=${ROOM_ID}`;
 });
 
-// 4. ESCUCHAR EVENTOS DE OTROS USUARIOS
+socket.on('error_duplicate_host', (data) => {
+    alert(" ACCESO DENEGADO:\n" + data.message);
+    window.location.href = `/`;
+});
 
-// A. Alguien movió una caja (Sincronización de movimiento)
+// --- EVENTOS PARA HOST ---
+
+socket.on('joined_as_host', (data) => {
+    console.log("HOST", data.message);
+
+    // Crear MI propia caja como HOST
+    if (typeof window.createMyBox === 'function') {
+        window.createMyBox(MY_SOCKET_ID, USER_NAME, true);
+    }
+});
+
+socket.on('host_joined', (data) => {
+    console.log(" Host entró:", data.username);
+
+    // Si YO no soy el host, crear la caja del host
+    if (!IS_HOST && typeof window.addParticipant === 'function') {
+        window.addParticipant(data.socket_id, data.username, true);
+    }
+});
+
+socket.on('host_left', (data) => {
+    console.log(" Host salió:", data.username);
+    mostrarNotificacion(data.message);
+});
+
+// --- EVENTOS PARA PARTICIPANTES ---
+
+socket.on('joined_as_participant', (data) => {
+    console.log("Invitado", data.message);
+
+    // Crear MI propia caja como PARTICIPANTE
+    if (typeof window.createMyBox === 'function') {
+        window.createMyBox(MY_SOCKET_ID, USER_NAME, false);
+    }
+});
+
+socket.on('host_info', (data) => {
+    console.log("Info del host:", data);
+
+    // Crear caja del host
+    if (typeof window.addParticipant === 'function') {
+        window.addParticipant(data.socket_id, data.username, true);
+    }
+});
+
+socket.on('user_joined', (data) => {
+    console.log(" Nuevo usuario:", data);
+    mostrarNotificacion(data.message);
+
+    // Crear caja del nuevo participante (si no soy yo)
+    if (data.socket_id !== MY_SOCKET_ID && typeof window.addParticipant === 'function') {
+        window.addParticipant(data.socket_id, data.username, false);
+    }
+});
+
+socket.on('user_left', (data) => {
+    console.log(" Usuario salió:", data.username);
+    mostrarNotificacion(`${data.username} ha salido.`);
+
+    // Eliminar caja del participante
+    if (typeof window.removeParticipant === 'function') {
+        window.removeParticipant(data.socket_id);
+    }
+});
+
+// Recibir lista de usuarios existentes
+socket.on('room_users', (data) => {
+    console.log(" Usuarios en la sala:", data.users);
+
+    if (typeof window.loadParticipants === 'function') {
+        window.loadParticipants(data.users);
+    }
+});
+
+// --- EVENTOS DE SINCRONIZACIÓN ---
+
 socket.on('position_updated', (data) => {
     if (typeof window.updateElementPosition === 'function') {
         window.updateElementPosition(data.id, data.x, data.y);
     }
 });
 
-// B. Alguien dibujó en la pizarra
 socket.on('draw_stroke', (data) => {
     if (typeof window.drawLineOnCanvas === 'function') {
         window.drawLineOnCanvas(data.x0, data.y0, data.x1, data.y1, false);
     }
 });
 
-// C. Alguien envió una reacción (Emoji flotante)
-// CORRECCIÓN: Ahora filtramos para NO mostrar nuestras propias reacciones
 socket.on('show_reaction', (data) => {
-    // data = { emoji: '❤️', username: 'Juan' }
-
-    // Si la reacción es MÍA, no la muestro (ya la mostré localmente)
     if (data.username === USER_NAME) {
-        console.log("🔇 Reacción propia ignorada (ya mostrada localmente)");
+        console.log(" Reacción propia ignorada");
         return;
     }
 
-    // Si es de otro usuario, la muestro
-    console.log("📨 Reacción recibida de", data.username, ":", data.emoji);
+    console.log(" Reacción de", data.username, ":", data.emoji);
     if (typeof window.createFloatingEmoji === 'function') {
         window.createFloatingEmoji(data.emoji);
     }
 });
 
-// D. Alguien entró o salió (Notificaciones)
-socket.on('user_joined', (data) => {
-    console.log("👋", data.message);
-    mostrarNotificacion(data.message);
-});
+// --- FUNCIONES DE EMISIÓN ---
 
-socket.on('user_left', (data) => {
-    console.log("👋 Usuario desconectado:", data.username);
-    mostrarNotificacion(`${data.username} ha salido.`);
-});
-
-
-// 5. FUNCIONES PARA ENVIAR DATOS (Usadas por sala_ui.js)
-
-// Mover elementos
 window.emitMove = function(elementId, x, y) {
     socket.emit('update_position', {
         room: ROOM_ID,
@@ -82,7 +134,6 @@ window.emitMove = function(elementId, x, y) {
     });
 };
 
-// Dibujar
 window.emitDraw = function(x0, y0, x1, y1) {
     socket.emit('draw_stroke', {
         room: ROOM_ID,
@@ -93,7 +144,8 @@ window.emitDraw = function(x0, y0, x1, y1) {
     });
 };
 
-// 6. UTILIDADES INTERNAS
+// --- UTILIDADES ---
+
 function mostrarNotificacion(mensaje) {
     const toast = document.getElementById('toast-notification');
     if (toast) {
@@ -103,7 +155,6 @@ function mostrarNotificacion(mensaje) {
     }
 }
 
-// 7. DESCONEXIÓN
 socket.on('disconnect', () => {
-    console.log("❌ Desconectado del servidor.");
+    console.log(" Desconectado del servidor.");
 });

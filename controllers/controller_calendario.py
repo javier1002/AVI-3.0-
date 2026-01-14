@@ -1,3 +1,6 @@
+# ==========================================
+# imports necesarios para utilizar el api de google calendar
+# ==========================================
 import os
 import uuid
 import datetime
@@ -10,13 +13,15 @@ from googleapiclient.discovery import build
 calendar_bp = Blueprint('calendar', __name__)
 
 # CONFIGURACIÓN
-# Asegúrate de poner el archivo credentials.json en la RAÍZ del proyecto
+# utilizamos el archivo credentials.json en la RAÍZ del proyecto que nos dio google console
 CLIENT_SECRETS_FILE = "credentials.json"
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
 def get_flow():
-    """Ayuda a crear el flujo de autenticación dinámicamente"""
+    """
+    Ayuda a crear el flujo de autenticación dinámicamente
+    """
     flow = Flow.from_client_secrets_file(
         CLIENT_SECRETS_FILE,
         scopes=SCOPES
@@ -29,13 +34,10 @@ def get_flow():
 #  1. Login OAuth
 @calendar_bp.route("/login")
 def login():
-    # Permitir transporte inseguro SOLO en local para pruebas
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
     flow = get_flow()
     auth_url, _ = flow.authorization_url(prompt="consent", access_type="offline")
     return redirect(auth_url)
-
 
 #  2. Callback OAuth
 @calendar_bp.route("/oauth2callback")
@@ -47,9 +49,13 @@ def oauth2callback():
 
     return "Autenticado con Google. Puedes cerrar esta pestaña y volver a la app."
 
-# 3. Crear evento (Recibe JSON desde el frontend)
+
+
 @calendar_bp.route("/crear-reunion", methods=["POST"])
 def crear_reunion():
+    """
+    Crear evento (Recibe JSON desde el frontend)
+    """
     if 'google_token' not in session:
         return jsonify({"error": "No has iniciado sesión con Google"}), 401
 
@@ -60,15 +66,15 @@ def crear_reunion():
     data = request.json
     titulo = data.get("titulo", "Clase Virtual AVI")
 
-    # Generar ID de sala y Link a TU APLICACIÓN
+    # Generar ID de sala y Link
     room_id = str(uuid.uuid4())[:8]  # ID corto
 
-    # IMPORTANTE: Generamos el link para que entren a TU sistema de invitación
+    #  Generamos el link para que entren
     # _external=True crea el link completo (https://tu-app.com/join...)
     base_url = url_for('main.join_room', _external=True)
     link_clase = f"{base_url}?room={room_id}"
 
-    # Fechas (asumimos que envías strings ISO o usamos hora actual + 1 hora)
+    # Fechas
     ahora = datetime.datetime.utcnow().isoformat() + 'Z'
     despues = (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat() + 'Z'
 
@@ -82,7 +88,7 @@ def crear_reunion():
     try:
         evento = service.events().insert(calendarId="primary", body=event_body).execute()
         return jsonify({
-            "mensaje": "Evento creado exitosamente",
+            "mensaje": "Conferencia creada exitosamente",
             "link": evento.get('htmlLink'),
             "sala_link": link_clase
         })

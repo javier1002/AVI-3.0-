@@ -1,0 +1,124 @@
+/* static/css/crea_sala.css */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    /* Mantenemos el fondo morado */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+    /* CAMBIO CLAVE: Organizar elementos en columna vertical */
+    display: flex;
+    flex-direction: column;
+}
+
+/* La barra de navegación (Navbar) usará sus estilos de Bootstrap por defecto */
+
+/* El contenedor principal ocupará todo el espacio SOBRANTE */
+.main-wrapper {
+    flex: 1; /* Esto empuja el contenido para llenar la pantalla */
+    display: flex;
+    justify-content: center; /* Centrado Horizontal */
+    align-items: center;     /* Centrado Vertical */
+    width: 100%;
+    padding: 20px; /* Un poco de margen para pantallas pequeñas */
+    box-sizing: border-box;
+}
+
+/* --- EL RESTO DEL CSS SIGUE IGUAL --- */
+
+.card-container {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+h2 {
+    color: #333;
+    margin-bottom: 25px;
+    font-size: 1.8rem;
+}
+
+.form-group {
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+input:focus {
+    border-color: #667eea;
+    outline: none;
+}
+
+/* Botón Principal */
+.btn-primary {
+    width: 100%;
+    padding: 14px;
+    background-color: #667eea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.btn-primary:hover {
+    background-color: #5a6fd6;
+}
+
+hr {
+    margin: 20px 0;
+    border: 0;
+    border-top: 1px solid #eee;
+}
+
+/* Botón Google */
+.btn-google {
+    width: 100%;
+    padding: 12px;
+    background-color: white;
+    color: #4285F4;
+    border: 2px solid #4285F4;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: background 0.3s;
+}
+
+.btn-google:hover {
+    background-color: #f1f8ff;
+}
+
+.footer-text {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 15px;
+}

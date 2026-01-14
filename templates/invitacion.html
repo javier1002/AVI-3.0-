@@ -1,43 +1,28 @@
-{% extends "panel-header.html" %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/invitacionform.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unirse a Sala | {{ room }}</title>
 
-{# --- Bloque para inyectar CSS específico de esta página --- #}
-{% block head_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/invitacion.css') }}">
-{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <h1>Unirse a la Sala</h1>
+        <p>Estás entrando a: <strong>{{ room }}</strong></p>
 
-{% block content %}
-<div class="invite-wrapper">
-    <div class="invite-card">
-        <h2 class="invite-title">¿Todo listo para unirte?</h2>
+        <form id="joinForm" action="/unirse" method="POST">
+            <input type="hidden" name="room" value="{{ room }}">
 
-        <div class="room-badge">
-            <small style="color: #666;">Estás entrando a la sala:</small>
-            <span class="room-name">{{ room }}</span>
-        </div>
+            <input type="text" id="username" name="username" placeholder=" nombre o Apodo" required autofocus autocomplete="off">
+            <input type="password" name="password" placeholder="Contraseña (si la tiene)">
 
-        <form id="joinForm" action="{{ url_for('main.ir_sala') }}" method="POST">
-
-            <input type="hidden" name="roomId" value="{{ room }}">
-
-            <div class="form-group">
-                <label for="username" class="form-label">Tu Nombre y Apellido:</label>
-                <input type="text" id="username" name="username" class="form-input"
-                       placeholder="Ej: Juan Estudiante" required>
-            </div>
-
-            <div class="form-group">
-                <label for="password" class="form-label">Contraseña de Sala:</label>
-                <input type="text" id="password" name="password" class="form-input"
-                       placeholder="(Si el profesor te dio una)">
-            </div>
-
-            <button type="submit" class="btn-join" id="btnSubmit">
-                 Unirse
-            </button>
+            <button type="submit" id="btn-submit">Entrar</button>
+            <div id="error-message" class="error-msg"></div>
         </form>
     </div>
-</div>
 
-<script src="{{ url_for('static', filename='js/invitacion.js') }}"></script>
-
-{% endblock %}
+    <script src="{{ url_for('static', filename='js/invitacionform.js') }}"></script>
+</body>
+</html>
