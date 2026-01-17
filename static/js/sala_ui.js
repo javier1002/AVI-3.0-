@@ -1,4 +1,3 @@
-/* static/js/sala_ui.js - VERSIÓN FINAL: ALARMA, DIBUJO BLANCO Y CORRECCIONES */
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("--> sala_ui.js iniciado.");
@@ -33,13 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // =======================================================
     // 1. CONFIGURACIÓN DE AUDIO (ALARMA)
     // =======================================================
-    // Usamos un sonido de notificación tipo "Ding" confiable
     const handSound = new Audio('https://media.geeksforgeeks.org/wp-content/uploads/20190531135120/beep.mp3');
     handSound.volume = 1.0;
 
-    // TRUCO DE DESBLOQUEO DE AUDIO:
-    // Al primer clic en cualquier lugar, cargamos el audio en silencio.
-    // Esto evita que el navegador bloquee el sonido cuando llegue la notificación.
+    // TRUCO DE DESBLOQUEO DE AUDIO
     document.body.addEventListener('click', () => {
         if (handSound.paused) {
             handSound.play().then(() => {
@@ -53,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. CONFIGURACIÓN DEL CANVAS
     // =======================================================
     let wctx;
-    let drawingMode = 'pen'; // 'pen' o 'eraser'
+    let drawingMode = 'pen';
 
     if (whiteboard) {
         wctx = whiteboard.getContext('2d');
@@ -98,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // =======================================================
-    // 3. GESTIÓN DE CAJAS (VDO.Ninja)
+    // 3. GESTIÓN DE CAJAS (VDO.Ninja) - ¡AQUÍ ESTABA EL RIESGO!
     // =======================================================
 
     function sanitizeUsername(username) {
@@ -203,7 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let newX = e.clientX - parentRect.left - dragOffset.x;
             let newY = e.clientY - parentRect.top - dragOffset.y;
 
-            // Límites
             const maxX = parentRect.width - elementRect.width;
             const maxY = parentRect.height - elementRect.height;
             newX = Math.max(0, Math.min(newX, maxX));
@@ -212,7 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
             draggedElement.style.left = `${newX}px`;
             draggedElement.style.top = `${newY}px`;
 
-            // Emitir movimiento
             if (typeof emitMove === 'function') emitMove(draggedElement.id, newX, newY);
         }
     });
@@ -228,10 +222,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (tools.length > 0) {
         tools.forEach(btn => {
             btn.addEventListener('click', () => {
-                // Botones de acción inmediata (no cambian modo)
                 if (['btn-share', 'btn-reactions', 'btn-stats', 'btn-clear', 'btn-magic-wand', 'btn-hand'].includes(btn.id)) return;
 
-                // Resetear activos
                 tools.forEach(b => {
                     if (!['btn-share', 'btn-reactions', 'btn-stats', 'btn-clear', 'btn-hand'].includes(b.id)) {
                         b.classList.remove('active');
@@ -239,47 +231,61 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 btn.classList.add('active');
 
-                // Lógica de Modos
                 if (btn.id === 'btn-draw') {
                     currentMode = 'draw';
                     drawingMode = 'pen';
-                    if(whiteboard) {
+                    if (whiteboard) {
                         whiteboard.classList.add('drawing-mode');
                         whiteboard.style.cursor = 'crosshair';
                     }
-                    if(wctx) wctx.globalCompositeOperation = 'source-over';
-                    showToast('✏️ Lápiz activado', 'info');
+                    if (wctx) wctx.globalCompositeOperation = 'source-over';
+                    showToast(' Lápiz activado', 'info');
 
                 } else if (btn.id === 'btn-eraser') {
                     currentMode = 'draw';
                     drawingMode = 'eraser';
-                    if(whiteboard) {
+                    if (whiteboard) {
                         whiteboard.classList.add('drawing-mode');
                         whiteboard.style.cursor = 'cell';
                     }
-                    if(wctx) wctx.globalCompositeOperation = 'destination-out';
-                    showToast('🧼 Borrador activado', 'info');
+                    if (wctx) wctx.globalCompositeOperation = 'destination-out';
+                    showToast(' Borrador activado', 'info');
 
                 } else if (btn.dataset.mode === 'move') {
                     currentMode = 'move';
-                    if(whiteboard) {
+                    if (whiteboard) {
                         whiteboard.classList.remove('drawing-mode');
                         whiteboard.style.cursor = 'default';
                     }
-                    showToast('✋ Modo Mover', 'info');
+                    showToast(' Modo Mover', 'info');
                 }
             });
         });
     }
 
-    // Botón LIMPIAR
+    // --- CORRECCIÓN: BOTÓN LIMPIAR TODO (SINCRONIZADO) ---
     if (btnClear) {
         btnClear.addEventListener('click', () => {
-            if (confirm('¿Borrar toda la pizarra?')) {
-                wctx.clearRect(0, 0, whiteboard.width, whiteboard.height);
-                if (typeof socket !== 'undefined') socket.emit('clear_board');
-                showToast('🗑️ Pizarra limpia', 'error');
+            if (confirm('¿Borrar TODO (Pizarra y Varita) para todos?')) {
+                // 1. Borrar localmente la pizarra de lápiz
+                if (wctx) wctx.clearRect(0, 0, whiteboard.width, whiteboard.height);
+
+                // 2. ENVIAR ORDEN AL SERVIDOR (Esto faltaba o fallaba)
+                if (typeof socket !== 'undefined') {
+                    socket.emit('clear_board', { room: ROOM_ID });
+                }
             }
+        });
+    }
+
+    // --- ESCUCHAR ORDEN DE LIMPIEZA ---
+    if (typeof socket !== 'undefined') {
+        socket.on('force_clear_event', () => {
+            // Borrar pizarra blanca (lápiz)
+            if (wctx && whiteboard) {
+                wctx.clearRect(0, 0, whiteboard.width, whiteboard.height);
+            }
+            showToast(' Pizarra limpia', 'info');
         });
     }
 
@@ -288,7 +294,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btnHand.addEventListener('click', () => {
             btnHand.disabled = true;
             btnHand.style.opacity = "0.5";
-
             if (typeof socket !== 'undefined') {
                 socket.emit('raise_hand', { room: ROOM_ID, username: USER_NAME });
             }
@@ -313,15 +318,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // MANO LEVANTADA (ALARMA)
         socket.on('hand_raised_event', (data) => {
-            // Reproducir sonido
             handSound.currentTime = 0;
-            const playPromise = handSound.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => console.warn("Audio bloqueado:", error));
-            }
-
+            handSound.play().catch(error => console.warn("Audio bloqueado:", error));
             showToast(`✋ ${data.username} levantó la mano`, 'info');
             highlightParticipant(data.username);
+        });
+
+        // --- CORRECCIÓN: ESCUCHAR ORDEN DE LIMPIEZA ---
+        socket.on('force_clear_event', () => {
+            console.log("Limpiando pizarra por orden del host...");
+            // 1. Borrar Pizarra Blanca
+            if (wctx && whiteboard) {
+                wctx.clearRect(0, 0, whiteboard.width, whiteboard.height);
+            }
+            // 2. Avisar (Opcional)
+            showToast(' Pizarra y Varita limpiadas', 'info');
+
+            // NOTA: El archivo varita_magica.js escucha este mismo evento
+            // por su cuenta para borrar los trazos de la varita.
         });
     }
 
@@ -330,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         participants.forEach(p => {
             if (p.innerText.includes(username)) {
                 p.style.transition = "box-shadow 0.3s";
-                p.style.boxShadow = "0 0 30px #f1c40f"; // Amarillo
+                p.style.boxShadow = "0 0 30px #f1c40f";
                 p.style.borderColor = "#f1c40f";
                 setTimeout(() => {
                     p.style.boxShadow = "";
@@ -368,19 +382,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // FUNCIÓN DE DIBUJO (BLANCO)
     window.drawLineOnCanvas = function(x1, y1, x2, y2, emit = false, mode = 'pen') {
         if (!wctx) return;
-
         wctx.beginPath();
-
         if (mode === 'eraser') {
             wctx.globalCompositeOperation = 'destination-out';
             wctx.lineWidth = 20;
             wctx.strokeStyle = "rgba(0,0,0,1)";
         } else {
             wctx.globalCompositeOperation = 'source-over';
-            wctx.strokeStyle = '#ffffff'; // COLOR BLANCO CORRECTO
+            wctx.strokeStyle = '#ffffff';
             wctx.lineWidth = 3;
         }
-
         wctx.moveTo(x1, y1);
         wctx.lineTo(x2, y2);
         wctx.stroke();
@@ -499,8 +510,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btnShare.addEventListener('click', (e) => {
             e.preventDefault();
             const baseUrl = window.location.origin;
-
-            // URL CORRECTA HACIA LA INVITACIÓN
             const inviteUrl = `${baseUrl}/join?room=${ROOM_ID}`;
 
             if (navigator.clipboard) {

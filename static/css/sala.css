@@ -129,14 +129,49 @@ small { color: #666; font-weight: normal; }
    ========================================= */
 #avi-tools {
     position: relative;
-    z-index: 5000 !important; /* Techo absoluto */
-    padding: 12px 25px;
+    z-index: 5000 !important;
+    width: 100%;
+    /* Max-width del contenedor para que no se estire infinito en PC */
+    max-width: 100vw;
+
     background: #fff;
-    border-radius: 8px; /* Panel redondeado */
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    display: flex; align-items: center; gap: 12px;
-    width: 100%; max-width: 1280px; box-sizing: border-box;
-    margin-bottom: 10px;
+    padding: 10px 0;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    margin-bottom: 20px;
+
+    display: flex;
+    align-items: center;
+
+    /* Por defecto centrado en PC */
+    justify-content: center;
+    gap: 10px;
+    box-sizing: border-box;
+}
+
+/* AJUSTE PARA MÓVILES (Celulares) */
+@media (max-width: 768px) {
+    #avi-tools {
+        /* En móvil alineamos al inicio para que el scroll funcione bien */
+        justify-content: flex-start;
+
+        /* Permitir scroll horizontal */
+        overflow-x: auto;
+
+        /* Padding lateral para que los botones no toquen el borde */
+        padding: 10px 15px;
+
+        /* Suavidad en iPhone */
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Ocultar la barra de scroll fea pero mantener la función */
+    #avi-tools::-webkit-scrollbar { display: none; }
+
+    /* Que los botones no se aplasten */
+    #avi-tools button {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
 }
 
 /* Botones */
