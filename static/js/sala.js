@@ -11,7 +11,6 @@
 <div id="avi-tools">
   <button type="button" class="active" data-mode="move">Mover</button>
   <button type="button" data-mode="draw">Dibujar</button>
-  <button type="button" data-mode="pointer">Vara</button>
 </div>
 
 <div id="avi-stage">

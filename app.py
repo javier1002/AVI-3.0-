@@ -44,3 +44,17 @@ if __name__ == "__main__":
         debug=app.config.get('DEBUG', True),
         allow_unsafe_werkzeug=True,
     )
+
+
+    # varita websocket
+    @socketio.on('wand_move')
+    def handle_wand_move(data):
+        # Recibimos las coordenadas del dedo de un usuario
+        room = session.get('room')  # O data.get('room') si lo envías en el json
+
+        # Agregamos el ID de sesión para identificar quién es
+        data['id'] = request.sid
+
+        # Retransmitimos a TODOS en la sala (menos al que lo envió)
+        # include_self=False evita que veas tu propia varita con lag (retraso)
+        emit('wand_remote_update', data, to=room, include_self=False)

@@ -1,68 +1,212 @@
-/* Fondo general */
+/* --- static/css/styles.css --- */
+
+/* ==========================================================================
+   1. FONDO PÚRPURA Y ESTILO GENERAL
+   ========================================================================== */
 body {
-  font-family: Arial, sans-serif;
-  color: #000;
-  background: #EF3B36;
-  background: -webkit-linear-gradient(to right, #FFFFFF, #EF3B36);
-  background: linear-gradient(to right, #FFFFFF, #EF3B36);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+    margin: 0;
+    padding: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    /* CAMBIO CLAVE 1: Quitamos 'align-items: center' */
+    /* Esto permite que la barra se estire naturalmente al 100% */
+    /* align-items: center;  <-- ELIMINADO */
+
+    min-height: 100vh;
+    overflow-x: hidden;
+
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed; /* Para que el fondo no se corte al hacer scroll */
 }
 
-/* Sala / pizarra */
+h1 {
+    margin: 20px 0 10px 0;
+    color: #fff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    text-align: center; /* Centramos el título manualmente */
+}
+small { color: #ddd; font-weight: normal; }
+
+/* ==========================================================================
+   2. BARRA DE HERRAMIENTAS (ANCHO TOTAL)
+   ========================================================================== */
+/* ==========================================================================
+   2. BARRA DE HERRAMIENTAS (MEJORADA Y RESPONSIVE)
+   ========================================================================== */
+#avi-tools {
+    position: relative;
+    z-index: 5000 !important;
+    width: 100%;
+    background: #fff;
+    padding: 12px 0;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    margin-bottom: 20px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    box-sizing: border-box;
+}
+
+/* Botones Estilizados Base */
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 50px;
+    background: #f0f2f5;
+    color: #444;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    display: flex; align-items: center; gap: 8px;
+    white-space: nowrap; /* Evita que el texto del botón se parta en dos líneas */
+}
+
+/* --- MEDIA QUERIES (AQUÍ ESTÁ LA MAGIA RESPONSIVE) --- */
+
+/* Para Tablets y Móviles (Pantallas menores a 768px) */
+@media (max-width: 768px) {
+    #avi-tools {
+        justify-content: flex-start; /* Alinear al inicio para permitir scroll */
+        overflow-x: auto; /* Activar scroll horizontal */
+        padding: 10px 15px; /* Un poco de margen a los lados */
+        gap: 10px; /* Menos espacio entre botones */
+
+        /* Ocultar la barra de scroll fea pero permitir deslizar */
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+    }
+
+    #avi-tools::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+    }
+
+    button {
+        padding: 8px 14px; /* Botones un poco más pequeños */
+        font-size: 0.9rem; /* Texto un poco más chico */
+        flex-shrink: 0; /* IMPORTANTE: Que los botones no se aplasten */
+    }
+}
+
+/* Botones Estilizados */
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 50px;
+    background: #f0f2f5;
+    color: #444;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    display: flex; align-items: center; gap: 5px;
+}
+button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+button.active { background: #6a11cb; color: white; }
+
+/* Colores de Botones */
+.btn-red { background: #ff4757; color: white; } .btn-red:hover { background: #ff6b81; }
+.btn-green { background: #2ed573; color: white; } .btn-green:hover { background: #55efc4; }
+.btn-purple { background: #a55eea; color: white; } .btn-purple:hover { background: #d980fa; }
+
+/* Estado Activo de la Varita */
+.wand-active {
+    background-color: #8e44ad !important; color: white !important;
+    box-shadow: 0 0 15px rgba(142, 68, 173, 0.6); animation: pulse 1.5s infinite;
+}
+
+/* ==========================================================================
+   3. EL ESCENARIO (CENTRADO)
+   ========================================================================== */
 #avi-stage {
-  position: relative;
-  width: 1280px;   /* o 100% */
-  height: 720px;   /* o 100vh */
-  margin-top: 20px;
-  border: 2px solid #444;
-  background: #000;
-  overflow: hidden;
+    position: relative !important;
+    width: 100%;
+    max-width: 1280px;
+    height: 720px;
+
+    /* CAMBIO CLAVE 3: Centrado manual */
+    /* Como quitamos el centrado del body, centramos esto con auto */
+    margin: 0 auto 30px auto;
+
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    background: #000;
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    overflow: hidden;
+    isolation: isolate;
 }
 
-/* Capas base (por si luego usas fondo extra) */
-.avi-layer {
-  position: absolute;
-  inset: 0;
+/* ==========================================================================
+   4. SISTEMA DE CAPAS (Z-INDEX)
+   ========================================================================== */
+.avi-layer { position: absolute; inset: 0; }
+#avi-background { position: absolute; inset: 0; z-index: 1 !important; pointer-events: none; }
+#avi-background iframe { z-index: 1 !important; }
+
+#avi-whiteboard { position: absolute; inset: 0; z-index: 50 !important; pointer-events: none; }
+#avi-whiteboard.drawing-mode { pointer-events: auto; cursor: crosshair; }
+
+#magic-canvas {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 100 !important; pointer-events: none; transform: translate3d(0,0,0);
 }
 
-/* Canvas de pizarra: detrás de las cajas, pero ocupando todo */
-#avi-whiteboard {
-  position: absolute;
-  inset: 0;
-  background: transparent;
-  z-index: 1;              /* debajo de las cajas */
+#avi-participants { position: absolute; inset: 0; z-index: 200 !important; pointer-events: none; }
+
+/* Cajas Individuales */
+.participant {
+    position: absolute; z-index: 201 !important; pointer-events: auto;
+    width: 260px; height: 150px;
+    background: rgba(20, 20, 20, 0.95);
+    border: 3px solid #666; border-radius: 8px;
+    overflow: hidden; cursor: grab;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+    transition: border-color 0.2s;
+}
+.participant:hover { border-color: #aaa; }
+.participant iframe { width: 100%; height: 100%; border: none; pointer-events: auto; }
+.label-participant {
+    position: absolute; bottom: 0; width: 100%;
+    background: rgba(0,0,0,0.7); color: white;
+    font-size: 12px; text-align: center; padding: 4px 0;
+    pointer-events: none;
 }
 
-/* Área de participantes por encima del canvas */
-#avi-participants {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
+/* ==========================================================================
+   5. EXTRAS (Reacciones, Modales, Toast)
+   ========================================================================== */
+.reaction-wrapper { position: relative; }
+#reaction-panel {
+    position: absolute; left: 0; top: 120%;
+    z-index: 6000; background: white; padding: 10px;
+    border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; width: 140px;
 }
+#reaction-panel.hidden { display: none !important; }
+#reaction-panel span { font-size: 1.5rem; cursor: pointer; text-align: center; transition: transform 0.1s; }
+#reaction-panel span:hover { transform: scale(1.2); }
 
-#avi-participants .participant {
-  position: absolute;
-  z-index: 2;
+#toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; }
+.toast {
+    background: white; padding: 15px 25px; border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2); border-left: 5px solid #2ed573;
+    display: flex; align-items: center; min-width: 250px; font-weight: 500;
+    animation: slideIn 0.3s ease-out forwards;
 }
+.toast.error { border-left-color: #ff4757; }
+.toast.info { border-left-color: #2575fc; }
 
-/* Cajas de video */
-#avi-participants .participant {
-  position: absolute;
-  width: 260px;
-  height: 150px;
-  background: rgba(10,10,10,0.9);
-  border-radius: 10px;
-  border: 2px solid #00ff88;
-  overflow: hidden;
-  cursor: move;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2; /* mismas que el contenedor */
-}
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes fadeOut { to { opacity: 0; transform: translateY(10px); } }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-#avi-participants .participant iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; justify-content: center; align-items: center; }
+.modal-content { background: white; padding: 25px; border-radius: 12px; width: 600px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.hidden { display: none !important; }

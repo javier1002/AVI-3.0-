@@ -274,3 +274,12 @@ def init_socket_handlers(socketio):
                 'room': room,
                 'reactions': []
             })
+# levantar mano
+    @socketio.on('raise_hand')
+    def handle_raise_hand(data):
+        """
+        Recibe la señal de mano levantada y la reenvía a toda la sala
+        data espera: {'room': 'id_sala', 'username': 'Nombre'}
+        """
+        # Reenviamos el evento a todos en la sala (incluyendo al que la levantó para confirmar)
+        emit('hand_raised_event', data, to=data['room'])
