@@ -16,6 +16,7 @@
 {# --- 2. INTERFAZ --- #}
 <h1>Sala: {{ room }} <small>({{ username }}{% if is_host %} - Host{% endif %})</small></h1>
 
+
 <div id="avi-tools">
     <button type="button" class="active" data-mode="move" title="Mover objetos">✋ Mover</button>
 
@@ -26,47 +27,41 @@
     <button id="btn-magic-wand" type="button" title="Controlar con el dedo">🪄 Varita IA</button>
 
     <span class="divider"></span>
-    <button id="btn-share" type="button" class="btn-green">🔗 Invitar</button>
 
+    <button id="btn-chat" type="button" style="position: relative;">
+        💬 Chat
+        <span id="chat-badge" class="badge hidden">0</span>
+    </button>
 
     <a href="{{ bgPushUrl }}" target="_blank" style="text-decoration: none;">
         <button type="button" class="btn-purple">📺 Emitir Fondo</button>
     </a>
-    <span class="divider"></span>
-    <button id="btn-hand" type="button" title="Levantar la mano">✋</button>
-
-
-
-    <span class="divider"></span>
-
-    <div class="reaction-wrapper">
-        <button id="btn-reactions" type="button" title="Enviar Reacción">😊</button>
-        <div id="reaction-panel" class="hidden">
-            <span>❤️</span><span>👍</span><span>👏</span><span>😢</span><span>😂</span><span>😮</span>
-        </div>
-    </div>
 
     {% if is_host %}
+    <span class="divider"></span>
     <button id="btn-stats" type="button" title="Ver Estadísticas">📊 Logs</button>
     {% endif %}
-
-
 </div>
-
-<button id="btn-chat" type="button" style="position: relative;">
-    💬 Chat
-    <span id="chat-badge" class="badge hidden">0</span>
-</button>
 
 <div id="chat-panel" class="hidden">
     <div class="chat-header">
-        <span>💬 Chat del Aula</span>
+        <span>💬 Aula Interactiva</span>
         <button id="btn-close-chat">✖</button>
+    </div>
+
+    <div class="chat-actions-bar">
+        <button id="btn-share" class="btn-mini btn-green" title="Copiar enlace">🔗 Invitar</button>
+        <button id="btn-hand" class="btn-mini btn-yellow" title="Levantar mano">✋ Mano</button>
+        <button id="btn-reactions" class="btn-mini" title="Reaccionar">😊 Reacción</button>
+    </div>
+
+    <div id="reaction-panel" class="hidden">
+        <span>❤️</span><span>👍</span><span>👏</span><span>😢</span><span>😂</span><span>😮</span>
     </div>
 
     <div id="chat-messages">
         <div class="message system">
-            <small>Bienvenido al chat de la sala.</small>
+            <small>Bienvenido. Usa la barra superior para invitar o reaccionar.</small>
         </div>
     </div>
 
