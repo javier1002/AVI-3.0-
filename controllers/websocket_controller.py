@@ -222,3 +222,19 @@ def init_socket_handlers(socketio):
             'room': room,
             'reactions': reactions_log.get(room, [])
         })
+
+    @socketio.on('chat_message')
+    def handle_chat_message(data):
+        """
+        Recibe el mensaje de un usuario y lo reenvía a TODOS en la sala.
+        Data esperada: { 'room': '...', 'username': '...', 'message': '...', 'time': '...' }
+        """
+        room = data.get('room')
+
+        # Imprimir en consola del servidor para verificar que llega (Debugging)
+        print(f"💬 Chat en sala {room}: {data.get('message')}")
+
+        if room:
+            # 'broadcast=True' o 'to=room' asegura que le llegue a todos
+            # include_self=True (por defecto) asegura que tú también lo recibas y se pinte en tu pantalla
+            emit('chat_message', data, to=room)

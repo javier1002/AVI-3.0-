@@ -29,6 +29,137 @@ document.addEventListener('DOMContentLoaded', () => {
     const chartCanvas = document.getElementById('chart-canvas');
     let reactionChart = null;
 
+
+    // --- LÓGICA DEL CHAT (Sockets) ---
+    const chatPanel = document.getElementById('chat-panel');
+    const btnChat = document.getElementById('btn-chat');
+    const btnCloseChat = document.getElementById('btn-close-chat');
+    const chatInput = document.getElementById('chat-input');
+    const btnSendChat = document.getElementById('btn-send-chat');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatBadge = document.getElementById('chat-badge');
+
+    let unreadCount = 0;
+    // Sonido de mensaje (burbuja suave)
+    const chatSound = new Audio('https://cdn.freesound.org/previews/341/341695_5858296-lq.mp3');
+
+    // 1. Abrir/Cerrar Chat
+    if (btnChat) {
+        btnChat.addEventListener('click', () => {
+            chatPanel.classList.toggle('hidden');
+            if (!chatPanel.classList.contains('hidden')) {
+                // Al abrir, reseteamos notificaciones
+                unreadCount = 0;
+                chatBadge.classList.add('hidden');
+                chatBadge.innerText = '0';
+                scrollToBottom();
+                chatInput.focus();
+            }
+        });
+    }
+    if (btnCloseChat) {
+        btnCloseChat.addEventListener('click', () => chatPanel.classList.add('hidden'));
+    }
+
+    // 2. Enviar Mensaje
+    function sendMessage() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        if (typeof socket !== 'undefined') {
+            socket.emit('chat_message', {
+                room: ROOM_ID,
+                username: USER_NAME,
+                message: text,
+                time: time
+            });
+        }
+        chatInput.value = '';
+        chatInput.focus();
+    }
+
+    if (btnSendChat) btnSendChat.addEventListener('click', sendMessage);
+
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    }
+    // 3. RECIBIR MENSAJE (Socket)
+    if (typeof socket !== 'undefined') {
+
+        socket.off('chat_message'); // Prevenir duplicados
+
+        socket.on('chat_message', (data) => {
+            console.log("Mensaje recibido:", data);
+
+            const isMine = data.username === USER_NAME;
+
+            // 1. Crear burbuja en el historial
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${isMine ? 'mine' : 'others'}`;
+
+            msgDiv.innerHTML = `
+                ${!isMine ? `<span class="msg-author">${data.username}</span>` : ''}
+                ${data.message}
+                <span class="msg-time">${data.time}</span>
+            `;
+
+            const chatMessages = document.getElementById('chat-messages');
+            if (chatMessages) {
+                chatMessages.appendChild(msgDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            // --- LÓGICA DE NOTIFICACIONES ---
+            if (!isMine) {
+                const chatPanel = document.getElementById('chat-panel');
+
+                // Si el panel está OCULTO, mostramos alertas
+                if (chatPanel && chatPanel.classList.contains('hidden')) {
+
+                    // A) NOTIFICACIÓN EMERGENTE (TOAST) - ¡NUEVO!
+                    // Cortamos el mensaje si es muy largo para que no ocupe toda la pantalla
+                    const textPreview = data.message.length > 40 ? data.message.substring(0, 40) + '...' : data.message;
+
+                    if (typeof showToast === 'function') {
+                        // Muestra: "Juan: Hola profesor..." en una cajita flotante
+                        showToast(`💬 <b>${data.username}:</b> ${textPreview}`, 'info');
+                    }
+
+                    // B) SONIDO
+                    if (typeof chatSound !== 'undefined') {
+                        chatSound.currentTime = 0;
+                        chatSound.play().catch(e => {});
+                    }
+
+                    // C) CONTADOR ROJO (BADGE)
+                    const badge = document.getElementById('chat-badge');
+                    if(badge) {
+                        let count = parseInt(badge.innerText) || 0;
+                        badge.innerText = count + 1;
+                        badge.classList.remove('hidden');
+                    }
+
+                    // D) EFECTO EN BOTÓN
+                    const btnChat = document.getElementById('btn-chat');
+                    if (btnChat) {
+                        btnChat.style.transform = "scale(1.1)";
+                        setTimeout(() => btnChat.style.transform = "scale(1)", 200);
+                    }
+                }
+            }
+        });
+    }
+
+
+
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
     // =======================================================
     // 1. CONFIGURACIÓN DE AUDIO (ALARMA)
     // =======================================================
@@ -61,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             whiteboard.height = whiteboard.parentElement.clientHeight;
         };
         window.addEventListener('resize', resizeCanvas);
-        setTimeout(resizeCanvas, 100);
+        setTimeout(resizeCanvas, 50);
     }
 
     // --- VARIABLES DE ESTADO ---

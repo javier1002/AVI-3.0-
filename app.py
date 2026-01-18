@@ -41,3 +41,4 @@ if __name__ == "__main__":
         debug=app.config.get('DEBUG', True),
         allow_unsafe_werkzeug=True,
     )
+

@@ -49,7 +49,33 @@
     {% if is_host %}
     <button id="btn-stats" type="button" title="Ver Estadísticas">📊 Logs</button>
     {% endif %}
+
+
 </div>
+
+<button id="btn-chat" type="button" style="position: relative;">
+    💬 Chat
+    <span id="chat-badge" class="badge hidden">0</span>
+</button>
+
+<div id="chat-panel" class="hidden">
+    <div class="chat-header">
+        <span>💬 Chat del Aula</span>
+        <button id="btn-close-chat">✖</button>
+    </div>
+
+    <div id="chat-messages">
+        <div class="message system">
+            <small>Bienvenido al chat de la sala.</small>
+        </div>
+    </div>
+
+    <div class="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Escribe un mensaje..." autocomplete="off">
+        <button id="btn-send-chat">➤</button>
+    </div>
+</div>
+
 
 <div id="avi-stage">
   <div id="avi-background" class="avi-layer">
