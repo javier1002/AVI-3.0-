@@ -1,6 +1,6 @@
 # config.py
 class Config:
-    SECRET_KEY = 'avi-project-2025'
+    SECRET_KEY = 'avi-project-2026'
     DEBUG = True
     HOST = '127.0.0.1'
     PORT = 5000

@@ -1,0 +1,15 @@
+<!--plantilla de bienvenida-->
+{% extends "panel-header.html" %}
+{% block content %}
+<div class="jumbotron">
+  <h1 class="display-4">¡BIENVENIDO A AVI!</h1>
+  <p class="lead">Esta herramienta permite replicar la funcionalidad del software ClassVR en la plataforma de software abierto Vdo Ninja con el fin de permitir una experiencia de usuario inmersiva y con mínimos retardos en la transmisión de los flujos de videos.
+</p>
+  <hr class="my-4">
+  <p>para crear una sala dale click al boton Crear.</p>
+  <p class="lead">
+<!--      url_for, que apunta al endpoint real.-->
+    <a class="btn btn-primary btn-lg" href="{{ url_for('main.crea_sala') }}" role="button"> Crear </a>
+  </p>
+</div>
+{% endblock %}

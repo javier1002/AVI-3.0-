@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurar Sala | AVI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/crea_sala.css') }}">
+
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">AVI 3.0 </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <!-- llamo a la funcion del endpoint -->
+                    <a class="nav-link" href="/">Bienvenida</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="{{ url_for('main.crea_sala') }}">configurar
+                        sala</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.sala') }}">sala</a>
+                </li>
+
+            </ul>
+        </div>
+    </div>
+</nav>
+
+
+<div class="main-wrapper">
+    <div class="card-container">
+        <h2>Configurar Sala</h2>
+
+        <form action="{{ url_for('main.ir_sala') }}" method="POST">
+
+            <div class="form-group">
+                <label for="username"> Nombre (Host):</label>
+                <input type="text" id="username" name="username" placeholder="Nombre" required>
+            </div>
+
+            <div class="form-group">
+                <label for="roomId">Nombre de la Sala:</label>
+                <input type="text" id="roomId" name="roomId" placeholder="Ej: Conferencia" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Contraseña (Opcional):</label>
+                <input type="password" id="password" name="password" placeholder="Opcional">
+            </div>
+
+            <button type="submit" class="btn-primary">
+                 Entrar como HOST
+            </button>
+        </form>
+
+        <hr>
+
+        <button type="button" id="btn-google-calendar" class="btn-google">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg"
+                 width="20" alt="Calendar">
+            Agendar en Google Calendar
+        </button>
+
+
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="{{ url_for('static', filename='js/crea_sala.js') }}"></script>
+
+</body>
+</html>

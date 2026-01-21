@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/invitacionform.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unirse a Sala | {{ room }}</title>
+
+</head>
+<body>
+    <div class="container">
+        <h1>Unirse a la Sala</h1>
+        <p>Estás entrando a: <strong>{{ room }}</strong></p>
+
+        <form id="joinForm" action="/unirse" method="POST">
+            <input type="hidden" name="room" value="{{ room }}">
+
+            <input type="text" id="username" name="username" placeholder=" nombre o Apodo" required autofocus autocomplete="off">
+            <input type="password" name="password" placeholder="Contraseña (si la tiene)">
+
+            <button type="submit" id="btn-submit">Entrar</button>
+            <div id="error-message" class="error-msg"></div>
+        </form>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/invitacionform.js') }}"></script>
+</body>
+</html>
