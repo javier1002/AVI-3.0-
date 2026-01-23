@@ -1,16 +1,11 @@
-/* static/js/crea_sala.js */
-
 document.addEventListener('DOMContentLoaded', () => {
-
-    const btnGoogle = document.getElementById('btn-google-calendar');
-    const roomInput = document.getElementById('roomId');
+const btnGoogle = document.getElementById('btn-google-calendar');
+const roomInput = document.getElementById('roomId');
 
     if (btnGoogle) {
         btnGoogle.addEventListener('click', () => {
             // 1. Obtener el nombre de la sala
             const roomName = roomInput.value.trim();
-
-            // Validación
             if (!roomName) {
                 alert(" Por favor, escribe un nombre para la sala antes de agendar.");
                 roomInput.focus();
@@ -29,10 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const titulo = `Clase Virtual: ${roomName}`;
             const detalles = `Hola,\n\nTe invito a unirte a la clase virtual de ${roomName}.\n\n Haz clic en este enlace para entrar:\n${inviteLink}\n\n¡Nos vemos en clase!`;
 
-            // Armamos la URL final
+            // URL final
             const finalUrl = `${calendarBase}&text=${encodeURIComponent(titulo)}&details=${encodeURIComponent(detalles)}`;
-
-            // 4. Abrir en nueva pestaña
             window.open(finalUrl, '_blank');
         });
     }

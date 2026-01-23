@@ -1,13 +1,13 @@
 body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .container {
+       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+       display: flex;
+       justify-content: center;
+       align-items: center;
+       min-height: 100vh;
+       margin: 0;
+       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.container {
             background: white;
             padding: 40px;
             border-radius: 12px;
@@ -15,44 +15,44 @@ body {
             text-align: center;
             width: 100%;
             max-width: 380px;
-        }
-        h1 { color: #333; margin-bottom: 10px; }
-        p { color: #666; margin-bottom: 25px; }
+}
+h1 { color: #333; margin-bottom: 10px; }
+p { color: #666; margin-bottom: 25px; }
 
-        input {
-            width: 100%;
-            padding: 14px;
-            margin: 8px 0;
-            border: 2px solid #eee;
-            border-radius: 8px;
-            font-size: 16px;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-        }
-        input:focus {
+input {
+       width: 100%;
+       padding: 14px;
+       margin: 8px 0;
+       border: 2px solid #eee;
+       border-radius: 8px;
+       font-size: 16px;
+       box-sizing: border-box;
+       transition: border-color 0.3s;
+}
+input:focus {
             border-color: #667eea;
             outline: none;
-        }
-        button {
-            width: 100%;
-            padding: 14px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 20px;
-            transition: background 0.3s, transform 0.1s;
-        }
-        button:hover { background: #5a6fd6; }
-        button:active { transform: scale(0.98); }
-        button:disabled { background: #ccc; cursor: not-allowed; }
+            }
+button {
+        width: 100%;
+        padding: 14px;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 20px;
+        transition: background 0.3s, transform 0.1s;
+       }
+button:hover { background: #5a6fd6; }
+button:active { transform: scale(0.98); }
+button:disabled { background: #ccc; cursor: not-allowed; }
 
-        .error-msg {
+.error-msg {
             color: #e74c3c;
             font-size: 0.9rem;
-            display: none; /* Oculto por defecto */
+            display: none;
             margin-top: 10px;
-        }
+           }

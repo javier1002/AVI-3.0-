@@ -12,22 +12,15 @@
 {% set bgRoom = room ~ "_bg" %}
 {% set bgPushUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&push&autostart&webcam&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9" %}
 {% set bgViewUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&scene&autoplay&muted&cleanoutput&noheader&nocontrols&transparent&quality=0" %}
-
-{# --- 2. INTERFAZ --- #}
 <h1>Sala: {{ room }} <small>({{ username }}{% if is_host %} - Host{% endif %})</small></h1>
 
-
 <div id="avi-tools">
-    <button type="button" class="active" data-mode="move" title="Mover objetos">✋ Mover</button>
-
+    <button type="button" class="active" data-mode="move" title="Mover objetos"> 🤏🏻Mover</button>
     <button id="btn-draw" type="button" data-mode="draw" title="Lápiz">✏️ Dibujar</button>
     <button id="btn-eraser" type="button" title="Borrador">🧼 Borrar</button>
     <button id="btn-clear" type="button" class="btn-red" title="Limpiar Pizarra">🗑️ Limpiar</button>
-
     <button id="btn-magic-wand" type="button" title="Controlar con el dedo">🪄 Varita IA</button>
-
     <span class="divider"></span>
-
     <button id="btn-chat" type="button" style="position: relative;">
         💬 Chat
         <span id="chat-badge" class="badge hidden">0</span>

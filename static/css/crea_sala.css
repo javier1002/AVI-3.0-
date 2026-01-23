@@ -1,27 +1,20 @@
-/* static/css/crea_sala.css */
-
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     min-height: 100vh;
-    /* Mantenemos el fondo morado */
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-
-    /* CAMBIO CLAVE: Organizar elementos en columna vertical */
     display: flex;
     flex-direction: column;
 }
 
 /* La barra de navegación (Navbar) usará sus estilos de Bootstrap por defecto */
-
-/* El contenedor principal ocupará todo el espacio SOBRANTE */
 .main-wrapper {
-    flex: 1; /* Esto empuja el contenido para llenar la pantalla */
+    flex: 1;
     display: flex;
     justify-content: center; /* Centrado Horizontal */
     align-items: center;     /* Centrado Vertical */
     width: 100%;
-    padding: 20px; /* Un poco de margen para pantallas pequeñas */
+    padding: 20px;
     box-sizing: border-box;
 }
 

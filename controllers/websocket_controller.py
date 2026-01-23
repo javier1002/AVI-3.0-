@@ -1,6 +1,3 @@
-"""
-websocket_controller.py - COMPLETO con Varita y Limpieza
-"""
 import logging
 from datetime import datetime
 from flask import request
@@ -11,12 +8,13 @@ logger = logging.getLogger(__name__)
 
 # Estructuras de datos
 rooms = {}
-sid_map = {}
+sid_map = {} #Mapa de Identificadores de Sesión: cambia el id de socket por el nombre_usuario
 reactions_log = defaultdict(list)
 
 def init_socket_handlers(socketio):
-    """Registra TODOS los eventos de WebSocket"""
-
+    """
+    Registra TODOS los eventos de WebSocket
+    """
     @socketio.on('connect')
     def handle_connect():
         logger.info(f"[connect] Cliente conectado: {request.sid}")
@@ -27,7 +25,6 @@ def init_socket_handlers(socketio):
         sid = request.sid
         if sid not in sid_map:
             return
-
         room, username, is_host = sid_map[sid]
 
         if is_host and room in rooms:
@@ -223,18 +220,19 @@ def init_socket_handlers(socketio):
             'reactions': reactions_log.get(room, [])
         })
 
+
+
     @socketio.on('chat_message')
     def handle_chat_message(data):
         """
         Recibe el mensaje de un usuario y lo reenvía a TODOS en la sala.
-        Data esperada: { 'room': '...', 'username': '...', 'message': '...', 'time': '...' }
+        usando el patron Publicación-Suscripción modelo de mensajería asíncrona que desacopla a los emisores de mensajes
+        donde la persona que envia el mensaje desconoce los remitentes
         """
         room = data.get('room')
 
-        # Imprimir en consola del servidor para verificar que llega (Debugging)
+        # debug por consala para confirmar que se envio el mensaje por consola
         print(f"💬 Chat en sala {room}: {data.get('message')}")
 
         if room:
-            # 'broadcast=True' o 'to=room' asegura que le llegue a todos
-            # include_self=True (por defecto) asegura que tú también lo recibas y se pinte en tu pantalla
             emit('chat_message', data, to=room)

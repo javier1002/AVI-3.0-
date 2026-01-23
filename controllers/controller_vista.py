@@ -1,31 +1,27 @@
-# controlle_vista.py
 import logging
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session, flash
 
-# Configuración de logs para ver errores en la consola negra
+# Configuración de logs para ver errores
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 main_bp = Blueprint("main", __name__)
 
 # --- BASE DE DATOS EN MEMORIA ---
-# ¡IMPORTANTE! Se borra cada vez que el servidor se reinicia.
-# Si cambias código y guardas, esto vuelve a estar vacío {}.
 ROOMS_DB = {}
-
-# Intentar importar logs de reacciones (opcional)
+# ogs de reacciones
 try:
     from controllers.websocket_controller import reactions_log
 except ImportError:
     reactions_log = {}
 
-
 @main_bp.route("/", methods=["GET"])
 def home():
-    """Página de bienvenida"""
+    """
+    Página de bienvenida
+    """
     return render_template("home.html")
-
 
 # ==========================================
 # 1. RUTAS PARA CREAR SALA (HOST)
@@ -43,16 +39,12 @@ def ir_sala():
     """
     Recibe los datos del Host, guarda la contraseña y crea la sesión.
     """
-    # NOTA: Asegúrate que en tu HTML el input se llame 'roomId' o 'room'.
-    # Aquí busco ambos por seguridad.
+    # 'roomId' o 'room', aquí busco ambos por seguridad.
     room_id = request.form.get("roomId") or request.form.get("room")
     password = request.form.get("password", "").strip()
     username = request.form.get("username", "Host").strip()
-
-    # Validación básica
     if not room_id:
         return redirect(url_for("main.crea_sala"))
-
     room_id = room_id.strip()
 
     # --- GUARDAR CONTRASEÑA ---
@@ -63,16 +55,13 @@ def ir_sala():
         logger.info(f" [CREAR] Sala {room_id} creada SIN contraseña.")
 
     # --- AUTENTICACIÓN AUTOMÁTICA DEL HOST ---
-    # La llave maestra para no pedirle pass al creador
     session[f'auth_{room_id}'] = True
     session['username'] = username
     session['is_host'] = True
-
     return redirect(url_for("main.sala", room=room_id, username=username))
 
-
 # ==========================================
-# 2. RUTAS PARA UNIRSE (INVITADO)
+# 2. RUTAS PARA INVITADO
 # ==========================================
 
 @main_bp.route("/join", methods=["GET"])
@@ -95,13 +84,10 @@ def unirse():
     if not room_id: return redirect(url_for("main.home"))
     if not username: username = "Invitado"
 
-    # Resetear permisos (un invitado nunca es host al entrar por aquí)
+    # un invitado nunca es host al entrar por aquí
     session['username'] = username
     session['is_host'] = False
-
-    # --- VERIFICACIÓN DE CONTRASEÑA ---
     real_password = ROOMS_DB.get(room_id)
-
     logger.info(f" [LOGIN] Usuario {username} intenta entrar a {room_id}")
 
     if real_password:
@@ -134,46 +120,33 @@ def unirse():
 @main_bp.route("/sala", methods=['GET', 'POST'])
 def sala():
     """
-    Aquí es donde realmente se protege la página.
-    Nadie ve el HTML de la sala si no pasa el filtro.
+    Autenticacion
     """
     # 1. Recuperar datos
     room_id = request.args.get("room") or request.form.get("room")
     username = request.args.get("username") or session.get('username', 'Invitado')
-
     if not room_id: return redirect(url_for("main.home"))
-
-    # Asegurar sesión de usuario
     if 'username' not in session: session['username'] = username
-
-    # 2. LÓGICA DE SEGURIDAD
     stored_password = ROOMS_DB.get(room_id)
     auth_key = f'auth_{room_id}'
 
-    # ¿Requiere contraseña Y no estoy autenticado?
     if stored_password and not session.get(auth_key):
-
         # A. Si el usuario está enviando la contraseña AHORA (desde password_check.html)
         if request.method == 'POST':
             input_pass = request.form.get('password')
             if input_pass == stored_password:
                 session[auth_key] = True  # ¡Autenticado!
                 logger.info(f" [GATEKEEPER] Acceso concedido a {username}")
-                # Dejamos seguir el flujo hacia abajo...
+
             else:
                 flash("Contraseña incorrecta, inténtalo de nuevo.", "error")
                 return render_template("password_check.html", room=room_id, username=username)
 
-        # B. Si intento entrar directo por URL sin permiso
+        # Si intento entrar directo por URL sin permiso
         else:
             return render_template("password_check.html", room=room_id, username=username)
 
-    # 3. RENDERIZADO DE LA SALA (Solo si pasó el filtro anterior)
-
-    # La verdad sobre si es Host viene de la sesión, no de la URL
     is_host = session.get('is_host', False)
-
-    # Construcción de URLs para VDO.Ninja
     if is_host:
         vdo_url = (
             f"https://vdo.ninja/?room={room_id}"
@@ -197,7 +170,7 @@ def sala():
 
 
 # ==========================================
-# API ESTADÍSTICAS
+# API ESTADÍSTICAS  Y REACCIONES
 # ==========================================
 @main_bp.route("/summary/<room_id>")
 def get_summary(room_id):
