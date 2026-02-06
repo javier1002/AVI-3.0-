@@ -1,0 +1,42 @@
+/* UBICACIÓN: static/css/dock_colaborativo.css */
+
+/* --- CLASE MAESTRA PARA OCULTAR VISTAS --- */
+.view-hidden {
+    display: none !important;
+}
+
+/* --- PANEL DE CHAT --- */
+#chat-panel {
+    position: fixed !important; bottom: 90px !important; right: 20px !important;
+    width: 340px !important; height: 500px !important;
+    background: #fff; border-radius: 12px;
+    display: flex !important; flex-direction: column !important;
+    box-shadow: 0 5px 30px rgba(0,0,0,0.3); z-index: 6000;
+    overflow: hidden !important; border: 1px solid #ddd;
+}
+#chat-panel.hidden { display: none !important; }
+
+/* Cabecera */
+.chat-header { flex: 0 0 auto; padding: 10px; background: #6a11cb; color: white; display: flex; justify-content: space-between; align-items: center; }
+.chat-actions-bar { flex: 0 0 auto; padding: 10px; background: #f8f9fa; display: flex; justify-content: space-around; }
+#btn-close-chat { background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+
+/* Pestañas */
+.chat-tabs { display: flex; gap: 5px; background: rgba(0,0,0,0.2); padding: 3px; border-radius: 8px; }
+.chat-tabs button { background: transparent; border: none; color: rgba(255,255,255,0.7); padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+.chat-tabs button.active { background: white; color: #6a11cb; font-weight: bold; }
+
+/* --- CONTENEDORES DE VISTA --- */
+#view-chat-container, #view-users-container {
+    display: flex; flex-direction: column; flex: 1; /* Ocupa todo el espacio */
+    min-height: 0; overflow: hidden; background: white; height: 100%;
+}
+
+/* Chat Interno */
+#chat-messages { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.chat-input-area { flex: 0 0 auto; padding: 10px; background: white; border-top: 1px solid #eee; width: 100%; box-sizing: border-box; display: flex; gap: 5px; }
+#chat-input { flex: 1; padding: 8px; border-radius: 20px; border: 1px solid #ddd; outline: none; }
+#btn-send-chat { width: 35px; height: 35px; border-radius: 50%; background: #2ed573; color: white; border: none; cursor: pointer; }
+
+/* Lista Usuarios */
+#view-users-container { padding: 0; overflow-y: auto; background: #f9f9f9; }

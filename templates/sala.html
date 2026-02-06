@@ -5,107 +5,99 @@
 {% endblock %}
 
 {% block content %}
-
-{# --- 1. CONFIGURACIÓN --- #}
 {% set params = "room=" ~ room %}
 {% if password %}{% set params = params ~ "&password=" ~ password %}{% endif %}
 {% set bgRoom = room ~ "_bg" %}
 {% set bgPushUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&push&autostart&webcam&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9" %}
 {% set bgViewUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&scene&autoplay&muted&cleanoutput&noheader&nocontrols&transparent&quality=0" %}
+
 <h1>Sala: {{ room }} <small>({{ username }}{% if is_host %} - Host{% endif %})</small></h1>
 
 <div id="avi-tools">
-    <button type="button" class="active" data-mode="move" title="Mover objetos"> 🤏🏻Mover</button>
-    <button id="btn-draw" type="button" data-mode="draw" title="Lápiz">✏️ Dibujar</button>
-    <button id="btn-eraser" type="button" title="Borrador">🧼 Borrar</button>
-    <button id="btn-clear" type="button" class="btn-red" title="Limpiar Pizarra">🗑️ Limpiar</button>
-    <button id="btn-magic-wand" type="button" title="Controlar con el dedo">🪄 Varita IA</button>
+    <button type="button" class="active" data-mode="move">🤏🏻 Mover</button>
+    <button id="btn-draw" type="button">✏️ Dibujar</button>
+    <button id="btn-eraser" type="button">🧼 Borrar</button>
+    <button id="btn-clear" type="button" class="btn-red">🗑️ Limpiar</button>
+    <button id="btn-magic-wand" type="button">🪄 Varita IA</button>
     <span class="divider"></span>
+
     <button id="btn-chat" type="button" style="position: relative;">
-        💬 Chat
+        💬 Chat / 👥
         <span id="chat-badge" class="badge hidden">0</span>
     </button>
 
-    <a href="{{ bgPushUrl }}" target="_blank" style="text-decoration: none;">
-        <button type="button" class="btn-purple">📺 Emitir Fondo</button>
-    </a>
-
+    <a href="{{ bgPushUrl }}" target="_blank"><button class="btn-purple">📺 Fondo</button></a>
     {% if is_host %}
-    <span class="divider"></span>
-    <button id="btn-stats" type="button" title="Ver Estadísticas">📊 Logs</button>
+    <button id="btn-stats" type="button">📊 Logs</button>
     {% endif %}
 </div>
 
 <div id="chat-panel" class="hidden">
+
     <div class="chat-header">
-        <span>💬 Aula Interactiva</span>
-        <button id="btn-close-chat">✖</button>
+        <div class="chat-tabs">
+            <button id="tab-chat" class="active">💬 Mensajes</button>
+            <button id="tab-users">👥 Participantes</button>
+        </div>
+        <button id="btn-close-chat" type="button" title="Cerrar">✖</button>
     </div>
 
     <div class="chat-actions-bar">
-        <button id="btn-share" class="btn-mini btn-green" title="Copiar enlace">🔗 Invitar</button>
-        <button id="btn-hand" class="btn-mini btn-yellow" title="Levantar mano">✋ Mano</button>
-        <button id="btn-reactions" class="btn-mini" title="Reaccionar">😊 Reacción</button>
+        <button id="btn-share" class="btn-mini btn-green">🔗 Invitar</button>
+        <button id="btn-hand" class="btn-mini btn-yellow">✋ Mano</button>
+        <button id="btn-reactions" class="btn-mini">😊 Reacción</button>
     </div>
 
     <div id="reaction-panel" class="hidden">
         <span>❤️</span><span>👍</span><span>👏</span><span>😢</span><span>😂</span><span>😮</span>
     </div>
 
-    <div id="chat-messages">
-        <div class="message system">
-            <small>Bienvenido. Usa la barra superior para invitar o reaccionar.</small>
+    <div id="view-chat-container">
+        <div id="chat-messages">
+            <div class="message system"><small>Bienvenido a la sala.</small></div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Escribe un mensaje..." autocomplete="off">
+            <button id="btn-send-chat">➤</button>
         </div>
     </div>
 
-    <div class="chat-input-area">
-        <input type="text" id="chat-input" placeholder="Escribe un mensaje..." autocomplete="off">
-        <button id="btn-send-chat">➤</button>
+    <div id="view-users-container" class="view-hidden">
+        <p style="padding:20px; text-align:center; color:#888;">Cargando lista...</p>
     </div>
+
 </div>
 
-
 <div id="avi-stage">
-  <div id="avi-background" class="avi-layer">
-      <iframe src="{{ bgViewUrl }}" allow="autoplay; muted" style="width: 100%; height: 100%; border: 0; pointer-events: none;"></iframe>
-  </div>
-
+  <div id="avi-background" class="avi-layer"><iframe src="{{ bgViewUrl }}" allow="autoplay; muted" style="width:100%;height:100%;border:0;"></iframe></div>
   <div id="avi-participants" class="avi-layer"></div>
   <canvas id="avi-whiteboard"></canvas>
   <canvas id="magic-canvas"></canvas>
 </div>
 
-{# Modales y Notificaciones #}
 {% if is_host %}
 <div id="stats-modal" class="modal-overlay hidden">
     <div class="modal-content">
-        <h3>📊 Estadísticas de la Clase</h3>
-        <div style="position: relative; height:300px; width:100%">
-            <canvas id="chart-canvas"></canvas>
-        </div>
-        <button id="btn-close-stats" class="btn-red" style="margin-top: 15px;">Cerrar</button>
+        <h3>📊 Estadísticas</h3>
+        <div style="position: relative; height:300px;"><canvas id="chart-canvas"></canvas></div>
+        <button id="btn-close-stats" class="btn-red" style="margin-top:10px">Cerrar</button>
     </div>
 </div>
 {% endif %}
-
 <div id="toast-container"></div>
 
-{# --- 3. VARIABLES Y SCRIPTS --- #}
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
 <script>
     const ROOM_ID = "{{ room }}";
     const USER_NAME = "{{ username|default('Invitado') }}";
     const IS_HOST = {{ 'true' if is_host else 'false' }};
 </script>
-
 <script src="{{ url_for('static', filename='js/sala_socket.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sala_ui.js') }}"></script>
 <script src="{{ url_for('static', filename='js/varita_magica.js') }}"></script>
-
 {% endblock %}
