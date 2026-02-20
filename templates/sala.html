@@ -3,6 +3,8 @@
 {% block head_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dock_colaborativo.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 {% endblock %}
 
 {% block content %}
@@ -45,7 +47,7 @@
 
     <div id="view-chat-container">
         <div class="chat-actions-bar">
-            <button id="btn-share" class="btn-mini btn-green">🔗 Invitar</button>
+            <button onclick="alert('enlace copiado')" id="btn-share" class="btn-mini btn-green">🔗 Invitar</button>
             <button id="btn-hand" class="btn-mini btn-yellow">✋ Mano</button>
             <button id="btn-reactions" class="btn-mini">😊 Reacción</button>
         </div>

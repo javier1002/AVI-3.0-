@@ -1,8 +1,8 @@
-/* static/js/sala_ui.js - REESCRITURA COMPLETA */
+/* static/js/sala_ui.js - REESCRITURA COMPLETA v3 */
 /* FIXES:
-   1. Cámara VDO.ninja: usar stream ID único por usuario (push/view con &push=ID y &view=ID)
+   1. Cámara VDO.ninja: push/view con stream ID único; SIN cleanoutput en push para tener controles
    2. Sync posición y tamaño en tiempo real para TODOS
-   3. Borrador: usar fondo opaco + clearRect local, sync via eventos
+   3. Borrador: dos canvas apilados (fondo negro fijo + canvas de dibujo encima) → borrador perfecto
    4. Botones Invitar/Mano/Reacción SOLO en dock, NO en panel de mensajes ni participantes
 */
 
@@ -120,7 +120,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function buildPushUrl(username) {
         const sid = getStreamId(username);
         // push: publica la cámara con un ID único
-        return `https://vdo.ninja/?push=${sid}&password=false&autostart&label=${encodeURIComponent(username)}&cleanoutput`;
+        // SIN &cleanoutput para que aparezcan los controles nativos (silenciar, cámara, config)
+        return `https://vdo.ninja/?push=${sid}&password=false&autostart&label=${encodeURIComponent(username)}`;
     }
 
     function buildViewUrl(username) {
@@ -336,32 +337,63 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ============================================================
-    // WHITEBOARD / CANVAS
+    // WHITEBOARD / CANVAS - DOS CAPAS
     // ============================================================
+    // Arquitectura de dos canvas apilados:
+    //   1. canvasBG  (z-index inferior): fondo negro sólido, nunca se toca excepto al limpiar
+    //   2. whiteboard (z-index superior): donde se dibuja; usa destination-out para borrar
+    // Así el borrador revela el negro del fondo → sin residuos de líneas.
+    // Ambos canvas están en el mismo contenedor padre de #avi-whiteboard.
+
+    let canvasBG  = null;  // canvas de fondo
+    let ctxBG     = null;
+
     if (whiteboard) {
+        // Crear canvas de fondo si no existe ya
+        canvasBG = document.getElementById('avi-whiteboard-bg');
+        if (!canvasBG) {
+            canvasBG = document.createElement('canvas');
+            canvasBG.id = 'avi-whiteboard-bg';
+            Object.assign(canvasBG.style, {
+                position: 'absolute',
+                top: '0', left: '0',
+                pointerEvents: 'none',
+                zIndex: '0'
+            });
+            whiteboard.parentElement.style.position = 'relative';
+            whiteboard.parentElement.insertBefore(canvasBG, whiteboard);
+        }
+        ctxBG = canvasBG.getContext('2d');
+
+        // El canvas de dibujo encima
+        whiteboard.style.position = 'absolute';
+        whiteboard.style.top      = '0';
+        whiteboard.style.left     = '0';
+        whiteboard.style.zIndex   = '1';
+
         wctx = whiteboard.getContext('2d');
         wctx.lineCap  = 'round';
         wctx.lineJoin = 'round';
 
-        // IMPORTANTE: El canvas debe tener fondo oscuro para que el borrador funcione
-        // Se dibuja un fondo sólido al iniciar y al limpiar
-        function fillBackground() {
-            wctx.globalCompositeOperation = 'source-over';
-            wctx.fillStyle = 'rgba(0,0,0,0)'; // transparente para ver el fondo de la página
-            wctx.fillRect(0, 0, whiteboard.width, whiteboard.height);
-        }
+        function resizeCanvases() {
+            const parent = whiteboard.parentElement;
+            const w = parent.clientWidth;
+            const h = parent.clientHeight;
 
-        const resizeCanvas = () => {
-            const w = whiteboard.parentElement.clientWidth;
-            const h = whiteboard.parentElement.clientHeight;
+            // Fondo negro
+            canvasBG.width  = w;
+            canvasBG.height = h;
+            ctxBG.fillStyle = '#1a1a2e';   // color de fondo de la pizarra
+            ctxBG.fillRect(0, 0, w, h);
+
+            // Canvas de dibujo (se resetea, pero eso es aceptable en resize)
             whiteboard.width  = w;
             whiteboard.height = h;
-            fillBackground();
-        };
-        window.addEventListener('resize', resizeCanvas);
-        setTimeout(resizeCanvas, 100);
+        }
 
-        // Mouse events para dibujar
+        window.addEventListener('resize', resizeCanvases);
+        setTimeout(resizeCanvases, 100);
+
         function getPos(e) {
             const r = whiteboard.getBoundingClientRect();
             return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -372,18 +404,16 @@ document.addEventListener('DOMContentLoaded', () => {
             isDrawing = true;
             lastPos = getPos(e);
         });
-
         whiteboard.addEventListener('mousemove', e => {
             if (!isDrawing) return;
             const pos = getPos(e);
             drawLine(lastPos.x, lastPos.y, pos.x, pos.y, drawingType, true);
             lastPos = pos;
         });
-
         whiteboard.addEventListener('mouseup',    () => isDrawing = false);
         whiteboard.addEventListener('mouseleave', () => isDrawing = false);
 
-        // Touch support
+        // Touch
         whiteboard.addEventListener('touchstart', e => {
             if (currentMode !== 'draw') return;
             e.preventDefault();
@@ -392,26 +422,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const t = e.touches[0];
             lastPos = { x: t.clientX - r.left, y: t.clientY - r.top };
         }, { passive: false });
-
         whiteboard.addEventListener('touchmove', e => {
             if (!isDrawing) return;
             e.preventDefault();
-            const r   = whiteboard.getBoundingClientRect();
-            const t   = e.touches[0];
+            const r = whiteboard.getBoundingClientRect();
+            const t = e.touches[0];
             const pos = { x: t.clientX - r.left, y: t.clientY - r.top };
             drawLine(lastPos.x, lastPos.y, pos.x, pos.y, drawingType, true);
             lastPos = pos;
         }, { passive: false });
-
         whiteboard.addEventListener('touchend', () => isDrawing = false);
     }
 
     // Función central de dibujo
-    // CORRECCIÓN BORRADOR: destination-out borra píxeles; funciona si el canvas tiene alfa
+    // Con dos canvas: pen dibuja en el canvas de trazos, eraser usa destination-out
+    // que elimina los píxeles del canvas de trazos → revela el fondo negro → sin residuos
     window.drawLine = function(x0, y0, x1, y1, mode, shouldEmit) {
         if (!wctx) return;
         wctx.beginPath();
         if (mode === 'eraser') {
+            // destination-out elimina píxeles del canvas de dibujo,
+            // dejando ver el fondo negro del canvasBG → borrador limpio
             wctx.globalCompositeOperation = 'destination-out';
             wctx.lineWidth   = 30;
             wctx.strokeStyle = 'rgba(0,0,0,1)';
@@ -478,7 +509,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Limpiar pizarra - llega a TODOS (servidor usa include_self=True)
         socket.on('force_clear_event', () => {
+            // Limpiar canvas de trazos
             if (wctx) wctx.clearRect(0, 0, whiteboard.width, whiteboard.height);
+            // Repintar fondo negro (se borra con clearRect del canvas de trazos no, pero por seguridad)
+            if (ctxBG && canvasBG) {
+                ctxBG.fillStyle = '#1a1a2e';
+                ctxBG.fillRect(0, 0, canvasBG.width, canvasBG.height);
+            }
             showToast('Pizarra limpia');
         });
 
