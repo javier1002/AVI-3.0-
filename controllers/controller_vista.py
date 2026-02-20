@@ -23,6 +23,13 @@ def home():
     """
     return render_template("home.html")
 
+@main_bp.route("/Readme", methods=["GET"])
+def Readme():
+    """
+    Página de bienvenida
+    """
+    return render_template("Readme.html")
+
 # ==========================================
 # 1. RUTAS PARA CREAR SALA (HOST)
 # ==========================================

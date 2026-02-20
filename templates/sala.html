@@ -2,6 +2,7 @@
 
 {% block head_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dock_colaborativo.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -42,28 +43,35 @@
         <button id="btn-close-chat" type="button" title="Cerrar">✖</button>
     </div>
 
-    <div class="chat-actions-bar">
-        <button id="btn-share" class="btn-mini btn-green">🔗 Invitar</button>
-        <button id="btn-hand" class="btn-mini btn-yellow">✋ Mano</button>
-        <button id="btn-reactions" class="btn-mini">😊 Reacción</button>
-    </div>
-
-    <div id="reaction-panel" class="hidden">
-        <span>❤️</span><span>👍</span><span>👏</span><span>😢</span><span>😂</span><span>😮</span>
-    </div>
-
     <div id="view-chat-container">
+        <div class="chat-actions-bar">
+            <button id="btn-share" class="btn-mini btn-green">🔗 Invitar</button>
+            <button id="btn-hand" class="btn-mini btn-yellow">✋ Mano</button>
+            <button id="btn-reactions" class="btn-mini">😊 Reacción</button>
+        </div>
+
+        <div id="reaction-panel" class="hidden">
+            <span>❤️</span><span>👍</span><span>👏</span><span>😢</span><span>😂</span><span>😮</span>
+        </div>
+
         <div id="chat-messages">
             <div class="message system"><small>Bienvenido a la sala.</small></div>
         </div>
+
         <div class="chat-input-area">
             <input type="text" id="chat-input" placeholder="Escribe un mensaje..." autocomplete="off">
             <button id="btn-send-chat">➤</button>
         </div>
     </div>
 
-    <div id="view-users-container" class="view-hidden">
-        <p style="padding:20px; text-align:center; color:#888;">Cargando lista...</p>
+    <div id="view-users-container" class="hidden">
+        <div class="users-actions-bar">
+
+        </div>
+
+        <div id="users-list">
+            <p style="padding:20px; text-align:center; color:#888;">Cargando participantes...</p>
+        </div>
     </div>
 
 </div>
@@ -83,7 +91,10 @@
         <button id="btn-close-stats" class="btn-red" style="margin-top:10px">Cerrar</button>
     </div>
 </div>
+
+
 {% endif %}
+
 <div id="toast-container"></div>
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -100,4 +111,5 @@
 <script src="{{ url_for('static', filename='js/sala_socket.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sala_ui.js') }}"></script>
 <script src="{{ url_for('static', filename='js/varita_magica.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dock_colaborativo.js') }}"></script>
 {% endblock %}
