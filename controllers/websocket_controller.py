@@ -187,7 +187,7 @@ def init_socket_handlers(socketio):
                 'user': username, 'emoji': emoji,
                 'timestamp': datetime.now().strftime("%H:%M:%S")
             })
-            emit('show_reaction', {'emoji': emoji, 'username': username}, to=room)
+            emit('show_reaction', {'emoji': emoji, 'username': username}, to=room, include_self=True)
 
     # ------------------------------------------------------------------ #
     @socketio.on('raise_hand')
