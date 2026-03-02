@@ -8,13 +8,13 @@ from config import config
 from controllers.controller_vista import main_bp
 from controllers.websocket_controller import init_socket_handlers
 
-# ── Socket.IO configurado para soportar relay de frames de video ──────────────
 socketio = SocketIO(
     cors_allowed_origins="*",
-    async_mode='gevent',            # <-- CAMBIO CRÍTICO: Para producción en Render
-    max_http_buffer_size=10_000_000,  # 10 MB — soporta frames JPEG base64
-    ping_timeout=60,                  # evita desconexión durante streaming
+    async_mode='gevent',
+    max_http_buffer_size=10_000_000,
+    ping_timeout=60,
     ping_interval=25,
+    max_decode_packets=500,
     logger=False,
     engineio_logger=False,
 )

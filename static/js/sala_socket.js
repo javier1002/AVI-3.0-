@@ -1,4 +1,7 @@
-const socket = io();
+const socket = io({
+    transports: ['websocket', 'polling'], // Fuerza usar WebSockets reales primero
+    upgrade: true
+});
 // Variable para guardar mi socket_id
 let MY_SOCKET_ID = null;
 
