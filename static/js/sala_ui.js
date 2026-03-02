@@ -557,6 +557,97 @@ document.addEventListener('DOMContentLoaded', () => {
         if (dock && !document.getElementById('btn-breakout')) dock.prepend(btn);
     }
 
+    // ── MODAL DE CONFIRMACIÓN — breakout rooms ───────────────────────────────
+    function showBreakoutConfirm(roomName, roomId) {
+        // Eliminar modal anterior si existe
+        const prev = document.getElementById('breakout-confirm-modal');
+        if (prev) prev.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'breakout-confirm-modal';
+        modal.style.cssText = `
+            position:fixed; inset:0; z-index:9999;
+            background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);
+            display:flex; align-items:center; justify-content:center;
+        `;
+
+        const box = document.createElement('div');
+        box.style.cssText = `
+            background:rgba(15,17,30,0.98);
+            border:1px solid rgba(255,255,255,0.12);
+            border-radius:20px; padding:32px 36px;
+            max-width:420px; width:90%; text-align:center;
+            box-shadow:0 24px 60px rgba(0,0,0,0.7);
+            animation: bcSlide .25s ease;
+        `;
+
+        // Agregar keyframe de animación si no existe
+        if (!document.getElementById('bc-anim')) {
+            const st = document.createElement('style');
+            st.id = 'bc-anim';
+            st.textContent = `@keyframes bcSlide { from { opacity:0; transform:scale(.92) translateY(16px); } to { opacity:1; transform:none; } }`;
+            document.head.appendChild(st);
+        }
+
+        box.innerHTML = `
+            <div style="font-size:42px;margin-bottom:12px;">🏫</div>
+            <h3 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 8px">Te invitan a una sala</h3>
+            <p style="color:rgba(255,255,255,.55);font-size:14px;margin:0 0 24px">
+                El host te ha asignado a<br>
+                <strong style="color:#7c9eff;font-size:16px;">${roomName}</strong>
+            </p>
+            <div style="display:flex;gap:12px;justify-content:center;">
+                <button id="bc-accept" style="
+                    padding:12px 28px;border-radius:12px;border:none;cursor:pointer;
+                    background:linear-gradient(135deg,#4a90d9,#7c4fd4);
+                    color:#fff;font-size:14px;font-weight:700;
+                    transition:opacity .15s;flex:1;max-width:160px;">
+                    ✓ Entrar
+                </button>
+                <button id="bc-reject" style="
+                    padding:12px 28px;border-radius:12px;cursor:pointer;
+                    border:1px solid rgba(255,255,255,.18);
+                    background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);
+                    font-size:14px;font-weight:600;flex:1;max-width:160px;">
+                    ✕ Quedarme
+                </button>
+            </div>
+        `;
+
+        modal.appendChild(box);
+        document.body.appendChild(modal);
+
+        // Auto-aceptar en 30s con countdown
+        let secs = 30;
+        const acceptBtn = document.getElementById('bc-accept');
+        const countdown = setInterval(() => {
+            secs--;
+            if (acceptBtn) acceptBtn.textContent = `✓ Entrar (${secs}s)`;
+            if (secs <= 0) { clearInterval(countdown); doAccept(); }
+        }, 1000);
+
+        function doAccept() {
+            clearInterval(countdown);
+            modal.remove();
+            showToast(`📚 Entrando a ${roomName}...`, 'info');
+            setTimeout(() => {
+                const url = `/sala?room=${encodeURIComponent(roomId)}&username=${encodeURIComponent(USER_NAME)}&breakout=1`;
+                window.location.href = url;
+            }, 800);
+        }
+
+        function doReject() {
+            clearInterval(countdown);
+            modal.remove();
+            showToast('Decidiste quedarte en esta sala', 'info');
+        }
+
+        document.getElementById('bc-accept').addEventListener('click', doAccept);
+        document.getElementById('bc-reject').addEventListener('click', doReject);
+        // Click fuera = cerrar sin entrar
+        modal.addEventListener('click', e => { if(e.target===modal) doReject(); });
+    }
+
     // ── SOCKET EVENTS ─────────────────────────────────────────────────────
     if(typeof socket !== 'undefined'){
         socket.emit('join_room',{room:ROOM_ID,username:USER_NAME,is_host:iamHost});
@@ -624,13 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // El servidor manda redirect_to_room cuando el host envía a este usuario a otra sala
         socket.on('redirect_to_room', d => {
             const { room_id, room_name } = d;
-            showToast(`📚 Entrando a ${room_name || room_id}...`, 'info');
-            // Pequeño delay para que vea el toast
-            setTimeout(() => {
-                // Mantener username y contraseña en URL, el streamId VDO no cambia
-                const url = `/sala?room=${encodeURIComponent(room_id)}&username=${encodeURIComponent(USER_NAME)}`;
-                window.location.href = url;
-            }, 1200);
+            showBreakoutConfirm(room_name || room_id, room_id);
         });
 
         // El host recibe confirmación de que los grupos fueron creados

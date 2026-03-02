@@ -220,29 +220,44 @@ def init_socket_handlers(socketio):
     # WebRTC señalización (bg_segmentation.js v7)
     @socketio.on('bg_active')
     def handle_bg_active(data):
-        room = data.get('room')
+        room   = data.get('room')
+        sid    = data.get('socket_id', request.sid)
+        active = data.get('active', False)
+
+        # Si room viene vacío, buscarlo en sid_map
+        if not room and request.sid in sid_map:
+            room = sid_map[request.sid][0]
+            logger.info(f"[bg_active] room recuperado de sid_map: {room}")
+
         if room:
-            sid    = data.get('socket_id', request.sid)
-            active = data.get('active', False)
-            # Mantener estado para nuevos viewers que lleguen tarde
             if active:
-                bg_states[room][sid] = active
+                bg_states[room][sid] = True
             else:
                 bg_states[room].pop(sid, None)
             emit('bg_active', {'socket_id': sid, 'active': active},
                  to=room, include_self=False)
+            logger.info(f"[bg_active] {sid[:6]} active={active} room={room}")
+        else:
+            logger.warning(f"[bg_active] room=None para sid={request.sid[:6]}")
 
     @socketio.on('bg_frame')
     def handle_bg_frame(data):
-        """Relay de frame JPEG del canvas de segmentación a todos los viewers."""
+        """Relay de frame usando canal dedicado bgf_<sid>. Recupera room de sid_map si viene vacío."""
         room = data.get('room')
-        if room:
-            emit('bg_frame', {
-                'from': data.get('from', request.sid),
-                'data': data.get('data'),
-                'w':    data.get('w', 640),
-                'h':    data.get('h', 480),
-            }, to=room, include_self=False)
+
+        # Recuperar room de sid_map si el cliente envió room=undefined/null
+        if not room and request.sid in sid_map:
+            room = sid_map[request.sid][0]
+
+        if not room:
+            return
+
+        channel = f'bgf_{request.sid}'
+        emit(channel, {
+            'data': data.get('data'),
+            'w':    data.get('w', 320),
+            'h':    data.get('h', 240),
+        }, to=room, include_self=False)
 
     @socketio.on('bg_query_active')
     def handle_bg_query_active(data):
