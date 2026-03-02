@@ -1,6 +1,5 @@
-# ESTAS DOS LÍNEAS DEBEN SER LAS PRIMERAS DE TODO EL ARCHIVO (Para Render/Gunicorn)
-import eventlet
-eventlet.monkey_patch()
+import gevent.monkey
+gevent.monkey.patch_all()
 
 import logging
 from flask import Flask
@@ -12,7 +11,7 @@ from controllers.websocket_controller import init_socket_handlers
 # ── Socket.IO configurado para soportar relay de frames de video ──────────────
 socketio = SocketIO(
     cors_allowed_origins="*",
-    async_mode='eventlet',            # <-- CAMBIO CRÍTICO: Para producción en Render
+    async_mode='gevent',            # <-- CAMBIO CRÍTICO: Para producción en Render
     max_http_buffer_size=10_000_000,  # 10 MB — soporta frames JPEG base64
     ping_timeout=60,                  # evita desconexión durante streaming
     ping_interval=25,
