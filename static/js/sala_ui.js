@@ -1,4 +1,4 @@
-/* static/js/sala_ui.js - v6 — fondo para todos + salas grupales */
+/* static/js/sala_ui.js - v7 — fondo compartido + salas grupales */
 document.addEventListener('DOMContentLoaded', () => {
 
     const wasHost = sessionStorage.getItem('is_host') === 'true';
@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnToggleTools   = document.getElementById('btn-toggle-tools');
     const dockContainer    = document.getElementById('collab-dock');
     const tools            = document.querySelectorAll('#avi-tools button');
+    const btnBg            = document.getElementById('btn-bg'); // <-- Referencia al Botón Fondo
 
     // ── Estado ────────────────────────────────────────────────────────────
     let wctx=null, canvasBG=null, ctxBG=null;
@@ -50,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const MOVE_THROTTLE=32;
     const CANVAS_BG='#1a1a2e';
     let reactionChart=null;
-    let mySocketId=null; // se asigna al unirse
+    let mySocketId=null;
 
     // ── Sonidos ───────────────────────────────────────────────────────────
     const chatSound = new Audio('https://cdn.freesound.org/previews/341/341695_5858296-lq.mp3');
@@ -152,24 +153,20 @@ document.addEventListener('DOMContentLoaded', () => {
         addDragAndResize(div);
 
         if (isMe) {
-            // Caja propia → adjuntar UI de fondo (todos pueden usar el filtro)
             loadBgSegModule(() => {
                 window.BgSegModule.attach(div, socketId, username);
-                // Procesar TODAS las cajas pendientes de setupViewer
                 document.querySelectorAll('.participant[data-pending-viewer]').forEach(el => {
                     const pSid = el.dataset.pendingViewer;
                     el.removeAttribute('data-pending-viewer');
                     window.BgSegModule.setupViewer(el, pSid);
                 });
-                // También configurar cajas que ya existen sin viewer aún
                 document.querySelectorAll('.participant').forEach(el => {
-                    if (el.id === `participant-${socketId}`) return; // no la propia
+                    if (el.id === `participant-${socketId}`) return;
                     const pSid = el.id.replace('participant-', '');
                     window.BgSegModule.setupViewer(el, pSid);
                 });
             });
         } else {
-            // Caja ajena → preparar viewer de frames
             loadBgSegModule(() => {
                 const el = document.getElementById(`participant-${socketId}`);
                 if (!el) return;
@@ -340,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ══════════════════════════════════════════════════════════════════════
     // SALAS EN GRUPO — Modal host para dividir participantes
     // ══════════════════════════════════════════════════════════════════════
-    let _groupParticipants = []; // lista de {socket_id, username} para el modal
+    let _groupParticipants = [];
 
     function buildGroupModal() {
         if (document.getElementById('group-modal')) return;
@@ -363,7 +360,6 @@ document.addEventListener('DOMContentLoaded', () => {
                            width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;">✕</button>
             </div>
 
-            <!-- Nombre de grupos -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
                 <div>
                     <label style="color:rgba(255,255,255,0.5);font-size:11px;font-weight:700;
@@ -381,18 +377,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
 
-            <!-- Instrucción -->
             <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:0 0 14px;">
                 Haz clic en cada participante para asignarlo a un grupo. Puedes asignar al host también.
             </p>
 
-            <!-- Lista de participantes -->
             <div id="group-participants-list"
                 style="display:flex;flex-wrap:wrap;gap:10px;min-height:80px;
                        background:rgba(255,255,255,0.03);border-radius:12px;padding:12px;margin-bottom:16px;">
             </div>
 
-            <!-- Leyenda -->
             <div style="display:flex;gap:16px;margin-bottom:18px;font-size:12px;color:rgba(255,255,255,0.5);">
                 <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;
                                    background:#4a90d9;margin-right:5px;vertical-align:middle;"></span>Sala A</span>
@@ -402,7 +395,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                    background:rgba(255,255,255,0.15);margin-right:5px;vertical-align:middle;"></span>Sin asignar</span>
             </div>
 
-            <!-- Acciones -->
             <div style="display:flex;gap:10px;justify-content:flex-end;">
                 <button id="group-auto-btn"
                     style="padding:10px 18px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);
@@ -451,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
             socket_id: b.id.replace('participant-',''),
             username:  b.dataset.username,
             isHost:    b.classList.contains('host'),
-            group:     b.dataset.groupAssign || 'none' // 'none' | 'a' | 'b'
+            group:     b.dataset.groupAssign || 'none'
         }));
 
         _groupParticipants.forEach((p, i) => {
@@ -466,7 +458,6 @@ document.addEventListener('DOMContentLoaded', () => {
             chip.innerHTML = `${p.isHost?'👑 ':''}${p.username}`;
 
             chip.addEventListener('click', () => {
-                // Ciclar: none → a → b → none
                 const next = p.group === 'none' ? 'a' : p.group === 'a' ? 'b' : 'none';
                 p.group = next;
                 const box = document.getElementById(`participant-${p.socket_id}`);
@@ -487,7 +478,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function autoAssign() {
-        // Distribuir alternando entre grupos (excluye al host de la asignación)
         let idx = 0;
         _groupParticipants.forEach(p => {
             if (p.isHost) { p.group='none'; return; }
@@ -512,7 +502,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Asigna al menos un participante a un grupo','warning'); return;
         }
 
-        // Sub-IDs de sala derivados del ID actual (para que la cámara de VDO persista)
         const roomA = ROOM_ID + '_ga';
         const roomB = ROOM_ID + '_gb';
 
@@ -527,11 +516,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(`Enviando a grupos: ${nameA} (${groupA.length}) y ${nameB} (${groupB.length})`,'success');
         closeGroupModal();
 
-        // Limpiar asignaciones
         document.querySelectorAll('.participant').forEach(b=>delete b.dataset.groupAssign);
     }
 
-    // Botón del host para abrir el modal de grupos
     function injectGroupButton() {
         if (!iamHost) return;
         if (document.getElementById('btn-breakout')) return;
@@ -539,27 +526,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.createElement('button');
         btn.id = 'btn-breakout';
         btn.title = 'Dividir en grupos';
-        // Hereda estilos de los botones de avi-tools
         btn.type = 'button';
         btn.innerHTML = '🏫 Grupos';
         btn.addEventListener('click', openGroupModal);
 
-        // Insertar en avi-tools (después del separador o al final)
         const toolbar = document.getElementById('avi-tools');
         if (toolbar) {
-            // Insertarlo antes del botón de stats si existe, o al final
             const statsBtn = document.getElementById('btn-stats');
             if (statsBtn) toolbar.insertBefore(btn, statsBtn);
             else toolbar.appendChild(btn);
         }
-        // También intentar en collab-dock como fallback
         const dock = document.getElementById('collab-dock');
         if (dock && !document.getElementById('btn-breakout')) dock.prepend(btn);
     }
 
     // ── MODAL DE CONFIRMACIÓN — breakout rooms ───────────────────────────────
     function showBreakoutConfirm(roomName, roomId) {
-        // Eliminar modal anterior si existe
         const prev = document.getElementById('breakout-confirm-modal');
         if (prev) prev.remove();
 
@@ -581,7 +563,6 @@ document.addEventListener('DOMContentLoaded', () => {
             animation: bcSlide .25s ease;
         `;
 
-        // Agregar keyframe de animación si no existe
         if (!document.getElementById('bc-anim')) {
             const st = document.createElement('style');
             st.id = 'bc-anim';
@@ -617,7 +598,6 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.appendChild(box);
         document.body.appendChild(modal);
 
-        // Auto-aceptar en 30s con countdown
         let secs = 30;
         const acceptBtn = document.getElementById('bc-accept');
         const countdown = setInterval(() => {
@@ -644,7 +624,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('bc-accept').addEventListener('click', doAccept);
         document.getElementById('bc-reject').addEventListener('click', doReject);
-        // Click fuera = cerrar sin entrar
         modal.addEventListener('click', e => { if(e.target===modal) doReject(); });
     }
 
@@ -673,10 +652,8 @@ document.addEventListener('DOMContentLoaded', () => {
             Object.entries(d.states||{}).forEach(([sid,st])=>applyBoxState({socket_id:sid,...st}));
         });
 
-        // Restaurar viewers de fondo al recargar (estados activos en la sala)
         socket.on('all_bg_states', d => {
             if (!d.states) return;
-            // Esperar a que las cajas estén en el DOM
             setTimeout(() => {
                 loadBgSegModule(() => {
                     window.BgSegModule.restoreAll(d.states);
@@ -693,11 +670,9 @@ document.addEventListener('DOMContentLoaded', () => {
             applyBoxState(d);
         });
 
-        // Fondo
         socket.on('bg_active', d => {
             const el = document.getElementById(`participant-${d.socket_id}`);
             if (!el) return;
-            // setupViewer es idempotente (usa data-viewerReady guard)
             loadBgSegModule(() => {
                 window.BgSegModule.setupViewer(el, d.socket_id);
             });
@@ -711,19 +686,15 @@ document.addEventListener('DOMContentLoaded', () => {
             else                                    wrap.style.background=d.color;
         });
 
-        // ── SALAS EN GRUPO ────────────────────────────────────────────────
-        // El servidor manda redirect_to_room cuando el host envía a este usuario a otra sala
         socket.on('redirect_to_room', d => {
             const { room_id, room_name } = d;
             showBreakoutConfirm(room_name || room_id, room_id);
         });
 
-        // El host recibe confirmación de que los grupos fueron creados
         socket.on('breakout_created', d => {
             showToast(`✅ Grupos creados: ${d.groups.map(g=>g.name).join(', ')}`, 'success');
         });
 
-        // ── Resto de eventos ──────────────────────────────────────────────
         socket.on('user_left', d=>{removeParticipant(d.socket_id);showToast(`${d.username} ha salido.`);});
         socket.on('host_left', d=>{removeParticipant(d.socket_id);showToast('Host desconectado.','warning');});
         socket.on('draw_stroke',d=>drawLine(d.x0,d.y0,d.x1,d.y1,d.mode,false));
@@ -777,7 +748,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── Herramientas ──────────────────────────────────────────────────────
-    const skipIds=['btn-chat','btn-share','btn-hand','btn-reactions','btn-stats','btn-toggle-tools','btn-breakout'];
+    // AÑADIMOS 'btn-bg' a la lista de ignorados para que no desactive las herramientas de dibujo
+    const skipIds=['btn-chat','btn-share','btn-hand','btn-reactions','btn-stats','btn-toggle-tools','btn-breakout','btn-bg'];
     tools.forEach(b=>{
         b.addEventListener('click',()=>{
             if(skipIds.includes(b.id))return;
@@ -787,6 +759,20 @@ document.addEventListener('DOMContentLoaded', () => {
             else{currentMode='move';if(whiteboard){whiteboard.classList.remove('drawing-mode');whiteboard.style.cursor='default';}showToast('Mover');}
         });
     });
+
+    // ── BOTÓN FONDO: Transmitir Pantalla / OBS al Fondo ───────────────────
+    if (btnBg) {
+        btnBg.addEventListener('click', () => {
+            const bgRoom = ROOM_ID + '_bg';
+            // Construimos la URL con &screenshare para forzar compartir pantalla nativamente
+            const bgPushUrl = `https://vdo.ninja/?room=${bgRoom}&push&autostart&screenshare&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9`;
+
+            // Abrimos en un pop-up flotante para que el Host seleccione qué ventana transmitir
+            window.open(bgPushUrl, 'FondoShare', 'width=800,height=600,menubar=no,toolbar=no,location=no');
+            showToast('Se abrió la ventana para compartir Pantalla/OBS al fondo', 'success');
+        });
+    }
+
     if(btnClear) btnClear.addEventListener('click',()=>{if(confirm('¿Borrar pizarra para todos?'))socket.emit('clear_board',{room:ROOM_ID});});
 
     if(btnHand) btnHand.addEventListener('click',()=>{

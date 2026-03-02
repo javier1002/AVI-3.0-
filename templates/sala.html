@@ -19,6 +19,9 @@
     <button id="btn-eraser" type="button">🧼 Borrar</button>
     <button id="btn-clear"  type="button" class="btn-red">🗑️ Limpiar</button>
     <button id="btn-magic-wand" type="button">🪄 Varita IA</button>
+
+    <button id="btn-bg" type="button">📺 Fondo</button>
+
     <span class="divider"></span>
 
     <button id="btn-chat" type="button" style="position:relative;">
@@ -27,7 +30,7 @@
     </button>
 
     {% if is_host %}
-    {# El botón 🏫 Grupos se inyecta aquí por JS (injectGroupButton) #}
+    {# El botón 🏫 Grupos se inyecta aquí por JS #}
     <button id="btn-stats" type="button">📊 Logs</button>
     {% endif %}
 </div>
