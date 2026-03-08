@@ -1,23 +1,27 @@
 {% extends "panel-header.html" %}
 
 {% block head_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dock_colaborativo.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dock_colaborativo.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 {% endblock %}
 
 {% block content %}
 {% set bgRoom = room ~ "_bg" %}
-{% set bgPushUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&push&autostart&webcam&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9" %}
-{% set bgViewUrl = "https://vdo.ninja/?room=" ~ bgRoom ~ "&scene&autoplay&muted&cleanoutput&noheader&nocontrols&transparent&quality=0" %}
+{% set bgPushUrl = "https://vdo.ninja/?room=" ~ bgRoom ~
+"&push&autostart&webcam&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9" %}
+{% set bgViewUrl = "https://vdo.ninja/?room=" ~ bgRoom ~
+"&scene&autoplay&muted&cleanoutput&noheader&nocontrols&transparent&quality=0" %}
 
 <h1>Sala: {{ room }} <small>({{ username }}{% if is_host %} - Host{% endif %})</small></h1>
 
+
+
 <div id="avi-tools">
     <button type="button" class="active" data-mode="move">🤏🏻 Mover</button>
-    <button id="btn-draw"   type="button">✏️ Dibujar</button>
+    <button id="btn-draw" type="button">✏️ Dibujar</button>
     <button id="btn-eraser" type="button">🧼 Borrar</button>
-    <button id="btn-clear"  type="button" class="btn-red">🗑️ Limpiar</button>
+    <button id="btn-clear" type="button" class="btn-red">🗑️ Limpiar</button>
     <button id="btn-magic-wand" type="button">🪄 Varita IA</button>
 
     <button id="btn-bg" type="button">📺 Fondo</button>
@@ -39,7 +43,7 @@
 <div id="chat-panel" class="hidden">
     <div class="chat-header">
         <div class="chat-tabs">
-            <button id="tab-chat"  class="active">💬 Mensajes</button>
+            <button id="tab-chat" class="active">💬 Mensajes</button>
             <button id="tab-users">👥 Participantes</button>
         </div>
         <button id="btn-close-chat" type="button" title="Cerrar">✖</button>
@@ -47,8 +51,8 @@
 
     <div id="view-chat-container">
         <div class="chat-actions-bar">
-            <button id="btn-share"     class="btn-mini btn-green">🔗 Invitar</button>
-            <button id="btn-hand"      class="btn-mini btn-yellow">✋ Mano</button>
+            <button id="btn-share" class="btn-mini btn-green">🔗 Invitar</button>
+            <button id="btn-hand" class="btn-mini btn-yellow">✋ Mano</button>
             <button id="btn-reactions" class="btn-mini">😊 Reacción</button>
         </div>
 
@@ -77,8 +81,7 @@
 {# Escenario principal #}
 <div id="avi-stage">
     <div id="avi-background" class="avi-layer">
-        <iframe src="{{ bgViewUrl }}" allow="autoplay; muted"
-                style="width:100%;height:100%;border:0;"></iframe>
+        <iframe src="{{ bgViewUrl }}" allow="autoplay; muted" style="width:100%;height:100%;border:0;"></iframe>
     </div>
     <div id="avi-participants" class="avi-layer"></div>
     <canvas id="avi-whiteboard"></canvas>
@@ -104,7 +107,8 @@
 
 {# MediaPipe para segmentación de fondo — cargado aquí para todos los usuarios #}
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"
+    crossorigin="anonymous"></script>
 
 {# MediaPipe Hands para Varita Mágica #}
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -112,9 +116,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
 <script>
-    const ROOM_ID   = "{{ room }}";
+    const ROOM_ID = "{{ room }}";
     const USER_NAME = "{{ username|default('Invitado') }}";
-    const IS_HOST   = {{ 'true' if is_host else 'false' }};
+    const IS_HOST = {{ 'true' if is_host else 'false' }};
 </script>
 
 <script src="{{ url_for('static', filename='js/sala_socket.js') }}"></script>

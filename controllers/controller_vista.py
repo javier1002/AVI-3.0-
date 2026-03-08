@@ -41,7 +41,9 @@ def crea_sala():
 
 @main_bp.route("/ir-sala", methods=["POST"])
 def ir_sala():
-    """Recibe datos del Host, guarda contraseña y redirige a la sala."""
+    """
+    Recibe datos del Host, guarda contraseña y redirige a la sala.
+    """
     room_id  = (request.form.get("roomId") or request.form.get("room", "")).strip()
     password = request.form.get("password", "").strip()
     username = request.form.get("username", "Host").strip()

@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: avi-aula-virtual
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker --workers 1 --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: RENDER
+        value: "true"
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+    headers:
+      - path: /*
+        name: X-Accel-Buffering
+        value: no
+```
+
+> El header `X-Accel-Buffering: no` le dice al proxy de Render que **no corte las conexiones largas** — es la clave para que WebSocket funcione en el plan gratuito.
+
+---
+
+## 📁 Paso 2 — Actualiza `requirements.txt`
+
+Asegúrate de tener estas dependencias exactas:
+```
+flask
+flask-socketio==5.3.6
+gevent==23.9.1
+gevent-websocket==0.10.1
+gunicorn==21.2.0
