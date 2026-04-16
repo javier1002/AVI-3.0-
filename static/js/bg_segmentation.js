@@ -1,7 +1,6 @@
-
 ;(function(){
 'use strict';
-const L=(...a)=>console.log('[BgSeg v13]',...a);
+const L=(...a)=>console.log('[BgSeg v14]',...a);
 
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 const CSS=`
@@ -28,8 +27,8 @@ const CSS=`
 .bg-person-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:8;pointer-events:none;background:transparent;}
 `;
 function injectCSS(){
-    if(document.getElementById('bgseg-v13'))return;
-    const s=document.createElement('style');s.id='bgseg-v13';s.textContent=CSS;
+    if(document.getElementById('bgseg-v14'))return;
+    const s=document.createElement('style');s.id='bgseg-v14';s.textContent=CSS;
     document.head.appendChild(s);
 }
 
@@ -46,16 +45,18 @@ const PRESETS=[
 function getSock(){ return window.socket||(typeof socket!=='undefined'?socket:null); }
 function getRoom(){ return window.ROOM_ID||(typeof ROOM_ID!=='undefined'?ROOM_ID:null); }
 
-const K=u=>`bgseg13_${(u||'').toLowerCase().replace(/[^a-z0-9]/g,'')}`;
+const K=u=>`bgseg14_${(u||'').toLowerCase().replace(/[^a-z0-9]/g,'')}`;
 const save=(u,c)=>{try{c&&c!=='off'?localStorage.setItem(K(u),c):localStorage.removeItem(K(u));}catch(e){}};
 const load=u=>{try{return localStorage.getItem(K(u))||null;}catch(e){return null;}};
+
+// ─── MI PROPIO SOCKET ID (registrado en attach) ───────────────────────────────
+let _myOwnSocketId = null;
 
 // ─── MediaPipe ────────────────────────────────────────────────────────────────
 let mpOk=false,mpProm=null;
 function mpLoad(){
     if(mpOk)return Promise.resolve();
     if(mpProm)return mpProm;
-    // Si SelfieSegmentation ya está disponible globalmente, no cargar nada más
     if(typeof SelfieSegmentation!=='undefined' && typeof Camera!=='undefined'){
         mpOk=true;
         L('MediaPipe ya disponible globalmente');
@@ -66,7 +67,6 @@ function mpLoad(){
         const S=[B+'camera_utils/camera_utils.js',B+'selfie_segmentation/selfie_segmentation.js'];
         let n=0, total=S.length;
         S.forEach(src=>{
-            // No re-cargar si ya hay un script con esa URL exacta
             if(document.querySelector(`script[src="${src}"]`)){
                 if(++n===total){mpOk=true;res();}
                 return;
@@ -74,14 +74,14 @@ function mpLoad(){
             const el=document.createElement('script');
             el.src=src;el.crossOrigin='anonymous';
             el.onload=()=>{if(++n===total){mpOk=true;res();}};
-            el.onerror=()=>rej(new Error('No cargó '+src));
+            el.onerror=()=>rej(new Error('No cargo '+src));
             document.head.appendChild(el);
         });
     });
     return mpProm;
 }
 
-// ─── Motor ────────────────────────────────────────────────────────────────────
+// ─── Motor (SOLO emisor — llama getUserMedia) ─────────────────────────────────
 function makeEngine(){
     let seg=null,cam=null,vid=null,cv=null,ctx=null,raw=null,tmp=null;
     let ok=false,col='transparent',mir=false;
@@ -106,6 +106,7 @@ function makeEngine(){
         seg=new SelfieSegmentation({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}`});
         seg.setOptions({modelSelection:1,selfieMode:true});
         seg.onResults(draw);await seg.initialize();
+        // getUserMedia SOLO aqui — el viewer NUNCA llega aqui
         raw=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},audio:false});
         vid=document.createElement('video');
         Object.assign(vid,{srcObject:raw,autoplay:true,playsInline:true,muted:true});
@@ -133,64 +134,62 @@ function makeEngine(){
 function makeStreamer(cvEl){
     const sk=getSock();
     if(!sk){L('ERROR: no hay socket');return null;}
-
     const myId=sk.id;
-    // Evento dedicado para este emisor: bg_frame_<myId>
-    // El servidor lo retransmite a la sala como bg_frame_<myId>
     const frameEvent=`bgf_${myId}`;
     L('Streamer: myId=',myId,'evento=',frameEvent);
-
     const FPS=10;
     const TX_W=320, TX_H=240;
     const txCv=document.createElement('canvas');
     txCv.width=TX_W;txCv.height=TX_H;
     const txCtx=txCv.getContext('2d');
     let alive=true, n=0;
-
-    sk.emit('bg_active',{room:getRoom(), socket_id:myId, active:true});
+    sk.emit('bg_active',{room:getRoom(),socket_id:myId,active:true});
     L('bg_active emitido, room=',getRoom());
-
     const timer=setInterval(()=>{
         if(!alive||!cvEl)return;
         try{
             txCtx.clearRect(0,0,TX_W,TX_H);
             txCtx.drawImage(cvEl,0,0,TX_W,TX_H);
-            // PNG conserva el canal alfa (transparencia) — JPEG lo destruye
-            const transparent = (window._bgSegColor==='transparent'||!window._bgSegColor);
-            const fmt  = transparent ? 'image/png' : 'image/jpeg';
-            const qual = transparent ? undefined : 0.40;
-            const data = txCv.toDataURL(fmt, qual);
-            sk.emit('bg_frame',{room:getRoom(), data, w:TX_W, h:TX_H});
+            const transparent=(window._bgSegColor==='transparent'||!window._bgSegColor);
+            const fmt=transparent?'image/png':'image/jpeg';
+            const qual=transparent?undefined:0.40;
+            const data=txCv.toDataURL(fmt,qual);
+            sk.emit('bg_frame',{room:getRoom(),data,w:TX_W,h:TX_H});
             n++;
-            if(n===1) L('✓ Primer frame bytes=',data.length,'fmt=',fmt);
-            if(n%60===0) L('frames enviados=',n);
+            if(n===1)L('Primer frame bytes=',data.length,'fmt=',fmt);
+            if(n%60===0)L('frames enviados=',n);
         }catch(e){}
     },1000/FPS);
-
     return{
         myId,
         stop(){
             alive=false;clearInterval(timer);
-            sk.emit('bg_active',{room:getRoom(),socket_id:myId,active:false});
+            const sk2=getSock();
+            if(sk2)sk2.emit('bg_active',{room:getRoom(),socket_id:myId,active:false});
         }
     };
 }
 
 // ─── VIEWER ───────────────────────────────────────────────────────────────────
+// NUNCA llama getUserMedia ni makeEngine — solo recibe frames via socket
 function makeViewer(boxEl, pubSocketId){
     const sk=getSock();
     if(!sk){L('ERROR: no hay socket');return null;}
+
+    // Si soy el emisor de ese stream, no necesito viewer
+    if(_myOwnSocketId && pubSocketId===_myOwnSocketId){
+        L('setupViewer omitido: soy el emisor de',pubSocketId);
+        return null;
+    }
+
     const wrap=boxEl.querySelector('.box-video-wrap')||boxEl;
     let cvEl=null, shown=false, n=0;
-
-    // Escuchar el canal dedicado del emisor: bgf_<pubSocketId>
     const frameEvent=`bgf_${pubSocketId}`;
     L('Viewer: pubId=',pubSocketId,'escuchando evento=',frameEvent);
 
     function show(){
         if(shown)return;shown=true;
-        L('▶ show() para',pubSocketId);
-        // Ocultar TODOS los iframes en el wrap
+        L('show() para',pubSocketId);
         wrap.querySelectorAll('iframe').forEach(f=>{
             f.style.display='none';
             f.style.visibility='hidden';
@@ -201,28 +200,30 @@ function makeViewer(boxEl, pubSocketId){
             cvEl.className='bg-person-canvas';
             cvEl.width=320;cvEl.height=240;
             cvEl.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:99;background:transparent!important;pointer-events:none;';
-            // Forzar contexto con alpha para soportar transparencia PNG
-            cvEl.getContext('2d',{alpha:true});
+            cvEl.getContext('2d',{alpha:true,willReadFrequently:true});
             wrap.appendChild(cvEl);
-            // Hacer el wrap y la caja completamente transparentes
             wrap.style.background='transparent';
             boxEl.style.background='transparent';
             L('Canvas viewer creado en',boxEl.id);
         }
     }
+
     function hide(){
         if(!shown)return;shown=false;
         if(cvEl){cvEl.remove();cvEl=null;}
-        const ifr=wrap.querySelector('iframe.box-iframe');
-        if(ifr)ifr.style.display='block';
+        wrap.querySelectorAll('iframe').forEach(f=>{
+            f.style.display='block';
+            f.style.visibility='visible';
+        });
         boxEl.classList.remove('bg-float');
+        wrap.style.background='';
+        boxEl.style.background='';
     }
 
     function onFrame(d){
         n++;
         if(n===1){
-            L('✓ PRIMER FRAME recibido canal=',frameEvent,'bytes=',d.data?.length);
-            show();
+            L('PRIMER FRAME recibido canal=',frameEvent,'bytes=',d.data?.length);
         }
         if(!shown)show();
         if(!cvEl)return;
@@ -232,7 +233,6 @@ function makeViewer(boxEl, pubSocketId){
             if(cvEl.width!==d.w)cvEl.width=d.w;
             if(cvEl.height!==d.h)cvEl.height=d.h;
             const ctx=cvEl.getContext('2d');
-            // Limpiar antes de dibujar para mantener transparencia
             ctx.clearRect(0,0,cvEl.width,cvEl.height);
             ctx.drawImage(img,0,0);
         };
@@ -245,13 +245,9 @@ function makeViewer(boxEl, pubSocketId){
         d.active?show():hide();
     }
 
-    // Escuchar canal dedicado de frames
-    sk.on(frameEvent, onFrame);
-    // Escuchar estado activo/inactivo
-    sk.on('bg_active', onActive);
-
-    // Preguntar si ya está activo
-    sk.emit('bg_query_active',{room:getRoom(), publisher:pubSocketId});
+    sk.on(frameEvent,onFrame);
+    sk.on('bg_active',onActive);
+    sk.emit('bg_query_active',{room:getRoom(),publisher:pubSocketId});
     L('bg_query_active enviado para',pubSocketId);
 
     const retry=setTimeout(()=>{
@@ -261,16 +257,22 @@ function makeViewer(boxEl, pubSocketId){
         }
     },3000);
 
-    return{destroy(){
-        clearTimeout(retry);
-        sk.off(frameEvent,onFrame);
-        sk.off('bg_active',onActive);
-        hide();
-    }};
+    return{
+        destroy(){
+            clearTimeout(retry);
+            sk.off(frameEvent,onFrame);
+            sk.off('bg_active',onActive);
+            hide();
+        }
+    };
 }
 
-// ─── UI propia ────────────────────────────────────────────────────────────────
+// ─── UI del emisor ────────────────────────────────────────────────────────────
 function attachUI(boxEl, myId, username){
+    // Registrar mi socket id para que setupViewer/makeViewer me ignoren
+    _myOwnSocketId=myId;
+    L('attach: mi socketId=',myId,'username=',username);
+
     if(boxEl.querySelector('.bgseg-btn'))return;
     const wrap=boxEl.querySelector('.box-video-wrap')||boxEl.querySelector('div');
     if(!wrap)return;
@@ -306,7 +308,7 @@ function attachUI(boxEl, myId, username){
     row.appendChild(pk);
     row.appendChild(Object.assign(document.createElement('span'),{style:'flex:1;font-size:11px;color:rgba(255,255,255,.45)',textContent:'Personalizado'}));
     pop.appendChild(row);
-    const off=document.createElement('button');off.className='bgseg-off';off.textContent='✕  Desactivar efecto';
+    const off=document.createElement('button');off.className='bgseg-off';off.textContent='Desactivar efecto';
     off.addEventListener('click',e=>{e.stopPropagation();deactivate();closeP();});
     pop.appendChild(off);wrap.appendChild(pop);
     btn.addEventListener('click',e=>{
@@ -318,7 +320,7 @@ function attachUI(boxEl, myId, username){
     function closeP(){pop.classList.remove('open');btn.classList.remove('open');}
     function spin(v){
         const el=wrap.querySelector('.bgseg-loader');
-        if(v&&!el){const d=document.createElement('div');d.className='bgseg-loader';d.innerHTML='<div class="bgseg-spin"></div><span>Cargando segmentación...</span>';wrap.appendChild(d);}
+        if(v&&!el){const d=document.createElement('div');d.className='bgseg-loader';d.innerHTML='<div class="bgseg-spin"></div><span>Cargando segmentacion...</span>';wrap.appendChild(d);}
         else if(!v&&el)el.remove();
     }
     async function apply(color){
@@ -333,15 +335,15 @@ function attachUI(boxEl, myId, username){
                 cvEl.className='bg-person-canvas';
                 wrap.appendChild(cvEl);
                 str=makeStreamer(cvEl);
-                window._bgSegColor=color; // para que el streamer sepa si usar PNG/JPEG
+                window._bgSegColor=color;
                 on=true;
-                btn.innerHTML='✓ Fondo';btn.classList.add('on');
+                btn.innerHTML='Fondo activo';btn.classList.add('on');
                 badge.classList.add('on');boxEl.dataset.bgSeg='on';
                 save(username,color);
-                if(window.showToast)showToast('🎭 Todos ven el filtro','success');
+                if(window.showToast)showToast('Todos ven el filtro','success');
             }catch(err){
-                L('ERROR:',err);
-                if(ifr)ifr.style.display='block';
+                L('ERROR en apply:',err.message);
+                if(ifr){ifr.style.display='block';ifr.style.visibility='visible';}
                 boxEl.classList.remove('bg-float');
                 if(eng){try{eng.stop();}catch(e){}eng=null;}
                 cvEl=null;on=false;
@@ -358,7 +360,7 @@ function attachUI(boxEl, myId, username){
         if(str){try{str.stop();}catch(e){}str=null;}
         if(eng){try{eng.stop();}catch(e){}eng=null;}
         if(cvEl){try{cvEl.remove();}catch(e){}cvEl=null;}
-        if(ifr)ifr.style.display='block';
+        if(ifr){ifr.style.display='block';ifr.style.visibility='visible';}
         boxEl.classList.remove('bg-float');
         on=false;col='transparent';
         grid.querySelectorAll('.bgseg-swatch').forEach(x=>x.classList.remove('active'));
@@ -370,30 +372,67 @@ function attachUI(boxEl, myId, username){
     const sv=load(username);
     if(sv&&sv!=='off'){
         setTimeout(()=>{
-            grid.querySelectorAll('.bgseg-swatch').forEach(sw=>{const p=PRESETS.find(p=>p.l===sw.title);if(p&&p.c===sv)sw.classList.add('active');});
+            grid.querySelectorAll('.bgseg-swatch').forEach(sw=>{
+                const p=PRESETS.find(p=>p.l===sw.title);
+                if(p&&p.c===sv)sw.classList.add('active');
+            });
             apply(sv);
         },2500);
     }
-    new MutationObserver(()=>{if(eng&&eng.active())eng.setMir(boxEl.dataset.mirror==='true');}).observe(boxEl,{attributes:true,attributeFilter:['data-mirror']});
+    new MutationObserver(()=>{
+        if(eng&&eng.active())eng.setMir(boxEl.dataset.mirror==='true');
+    }).observe(boxEl,{attributes:true,attributeFilter:['data-mirror']});
 }
 
-// ─── Registro de viewers ──────────────────────────────────────────────────────
+// ─── Registro y API publica ───────────────────────────────────────────────────
 const _v=new Map();
+
+function destroy(socketId){
+    for(const [key,viewer] of _v.entries()){
+        if(key.includes(socketId)){
+            try{viewer.destroy();}catch(e){}
+            _v.delete(key);
+            L('destroy viewer:',key);
+        }
+    }
+}
+
+function destroyAll(){
+    for(const [key,viewer] of _v.entries()){
+        try{viewer.destroy();}catch(e){}
+    }
+    _v.clear();
+    _myOwnSocketId=null;
+    L('destroyAll completado');
+}
+
 function setupViewer(boxEl, pubId){
+    if(_myOwnSocketId && pubId===_myOwnSocketId){
+        L('setupViewer omitido (soy emisor):',pubId);
+        return;
+    }
     const key=boxEl.id+'|'+pubId;
     if(_v.has(key))return;
     const v=makeViewer(boxEl,pubId);
     if(v)_v.set(key,v);
 }
+
 function restoreAll(states){
     if(!states)return;
     Object.entries(states).forEach(([sid])=>{
+        if(_myOwnSocketId && sid===_myOwnSocketId)return;
         const el=document.getElementById(`participant-${sid}`);
         if(el)setupViewer(el,sid);
     });
 }
 
-window.BgSegModule={attach:attachUI,setupViewer,restoreAll};
+window.BgSegModule={
+    attach:    attachUI,
+    setupViewer,
+    restoreAll,
+    destroy,
+    destroyAll,
+};
 injectCSS();
-L('v13 cargado ✓ — canales dedicados por emisor');
+L('v14 cargado — fix: viewer nunca llama getUserMedia, destroy/destroyAll disponibles');
 })();

@@ -9,10 +9,8 @@ logger = logging.getLogger(__name__)
 rooms         = {}
 sid_map       = {}
 reactions_log = defaultdict(list)
-box_states    = defaultdict(dict)   # {room: {socket_id: {x,y,width,height}}}
-# Estado de fondo por sala/socket (para re-emit al recargar)
-bg_states     = defaultdict(dict)   # {room: {socket_id: color}}
-
+box_states    = defaultdict(dict) 
+bg_states     = defaultdict(dict)  
 
 def init_socket_handlers(socketio):
 
@@ -21,7 +19,6 @@ def init_socket_handlers(socketio):
         logger.info(f"[connect] {request.sid}")
         emit('connection_response', {'status': 'connected'})
 
-    # ──────────────────────────────────────────────────────────────────────
     @socketio.on('disconnect')
     def handle_disconnect():
         sid = request.sid
@@ -46,7 +43,6 @@ def init_socket_handlers(socketio):
             box_states.pop(room, None)
             bg_states.pop(room, None)
 
-    # ──────────────────────────────────────────────────────────────────────
     @socketio.on('join_room')
     def handle_join_room(data):
         room     = data.get('room')
@@ -84,7 +80,6 @@ def init_socket_handlers(socketio):
             emit('joined_as_host',  {'message': f'Bienvenido HOST, {username}', 'room': room})
             emit('room_users',      {'users': participants_list})
             emit('all_box_states',  {'states': box_states.get(room, {})})
-            # Re-enviar estados de fondo activos a quien recarga
             emit('all_bg_states',   {'states': bg_states.get(room, {})})
             emit('host_joined', {'username': username, 'socket_id': sid}, to=room, include_self=False)
 
@@ -118,7 +113,6 @@ def init_socket_handlers(socketio):
             emit('user_joined', {'username': username, 'socket_id': sid,
                                  'message': f'{username} se ha unido.'}, to=room, include_self=False)
 
-    # ──────────────────────────────────────────────────────────────────────
     @socketio.on('box_move')
     def handle_box_move(data):
         room = data.get('room')
@@ -143,7 +137,6 @@ def init_socket_handlers(socketio):
         emit('box_state_event', {'socket_id': sid, **state},
              to=room, include_self=False)
 
-    # ──────────────────────────────────────────────────────────────────────
     @socketio.on('draw_stroke')
     def handle_draw_stroke(data):
         room = data.get('room')
@@ -200,9 +193,6 @@ def init_socket_handlers(socketio):
     def handle_get_reactions_log(data):
         room = data.get('room')
         emit('reactions_log', {'room': room, 'reactions': reactions_log.get(room, [])})
-
-    # ──────────────────────────────────────────────────────────────────────
-    # FONDO — guardar estado para persistencia al recargar
     @socketio.on('change_bg')
     def handle_change_bg(data):
         room      = data.get('room')
@@ -216,8 +206,7 @@ def init_socket_handlers(socketio):
             emit('bg_change_event', {'socket_id': socket_id, 'color': color},
                  to=room, include_self=False)
 
-    # ──────────────────────────────────────────────────────────────────────
-    # WebRTC señalización (bg_segmentation.js v7)
+    # WebRTC señalización (bg_segmentation.js)
     @socketio.on('bg_active')
     def handle_bg_active(data):
         room   = data.get('room')
@@ -279,7 +268,6 @@ def init_socket_handlers(socketio):
         pub_sid = data.get('publisher')
         viewer  = data.get('viewer', request.sid)
         if room and pub_sid:
-            # Reenviar al publisher para que sepa que hay un viewer nuevo
             emit('bg_viewer_ready', {'publisher': pub_sid, 'viewer': viewer}, to=pub_sid)
             logger.info(f"[bg_viewer_ready] viewer {viewer[:6]} → pub {pub_sid[:6]}")
 
@@ -327,7 +315,6 @@ def init_socket_handlers(socketio):
             emit('bg_ice_viewer', {'from': data.get('from', request.sid), 'to': to_sid,
                                    'candidate': data.get('candidate')}, to=to_sid)
 
-    # ──────────────────────────────────────────────────────────────────────
     # SALAS EN GRUPO (breakout rooms)
     @socketio.on('create_breakout_rooms')
     def handle_create_breakout_rooms(data):
@@ -338,10 +325,10 @@ def init_socket_handlers(socketio):
         depende del username, no del room_id.
         """
         parent_room = data.get('room')
-        groups      = data.get('groups', [])  # [{room_id, name, members:[socket_id]}]
+        groups      = data.get('groups', [])  
         sid         = request.sid
 
-        # Verificar que quien manda es el host
+        # Verificar que el host es que tiene permitido crear grupos
         if parent_room not in rooms or (rooms[parent_room]['host'] or {}).get('sid') != sid:
             emit('error', {'message': 'Solo el host puede crear grupos'})
             return
@@ -350,7 +337,7 @@ def init_socket_handlers(socketio):
         for group in groups:
             sub_room_id = group.get('room_id')
             sub_name    = group.get('name', sub_room_id)
-            members     = group.get('members', [])  # lista de socket_ids
+            members     = group.get('members', []) 
 
             if not sub_room_id or not members:
                 continue
@@ -373,7 +360,6 @@ def init_socket_handlers(socketio):
         emit('breakout_created', {'groups': created})
         logger.info(f"[breakout] {parent_room} → {[g['name'] for g in created]}")
 
-    # ──────────────────────────────────────────────────────────────────────
     @socketio.on('wand_move')
     def handle_wand_move(data):
         room = data.get('room')

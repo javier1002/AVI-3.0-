@@ -1,4 +1,4 @@
-/* static/js/sala_ui.js - v9 — borrador transparente, no daña fondo compartido */
+/* static/js/sala_ui.js - v10 — fixes: willReadFrequently, BgSeg destroy on reconnect, setupViewer race condition */
 document.addEventListener('DOMContentLoaded', () => {
 
     const wasHost = sessionStorage.getItem('is_host') === 'true';
@@ -113,13 +113,46 @@ document.addEventListener('DOMContentLoaded', () => {
         document.head.appendChild(s);
     }
 
+    // ── FIX: destroy segmentation workers for a specific socketId ─────────
+    // Llamar antes de eliminar cualquier caja del DOM para evitar workers zombi
+    function destroyBgSeg(socketId) {
+        try {
+            if (window.BgSegModule && typeof window.BgSegModule.destroy === 'function') {
+                window.BgSegModule.destroy(socketId);
+            }
+        } catch (e) {
+            console.warn('[BgSeg] destroy error:', e);
+        }
+    }
+
+    // ── FIX: destroy ALL segmentation workers (usado en reconexión) ────────
+    function destroyAllBgSeg() {
+        try {
+            if (window.BgSegModule && typeof window.BgSegModule.destroyAll === 'function') {
+                window.BgSegModule.destroyAll();
+            } else if (window.BgSegModule && typeof window.BgSegModule.destroy === 'function') {
+                // Fallback: destruir por cada caja existente
+                document.querySelectorAll('.participant').forEach(b => {
+                    const sid = b.id.replace('participant-', '');
+                    window.BgSegModule.destroy(sid);
+                });
+            }
+        } catch (e) {
+            console.warn('[BgSeg] destroyAll error:', e);
+        }
+    }
+
     // ── CREAR CAJA DE PARTICIPANTE ────────────────────────────────────────
     window.createBox = function (socketId, username, isHost, isMe) {
         if (document.getElementById(`participant-${socketId}`)) return;
 
         document.querySelectorAll('.participant').forEach(b => {
             const lbl = b.querySelector('.label-participant');
-            if (lbl && lbl.dataset.username === username) b.remove();
+            if (lbl && lbl.dataset.username === username) {
+                // FIX: destruir BgSeg del duplicado antes de removerlo
+                destroyBgSeg(b.id.replace('participant-', ''));
+                b.remove();
+            }
         });
 
         const div = document.createElement('div');
@@ -169,9 +202,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         } else {
+            // FIX RACE CONDITION: si BgSegModule aún no está cargado, marcar como pending
+            // En lugar de cargar el módulo y llamar setupViewer inmediatamente,
+            // esperamos a que la caja esté en el DOM y el módulo esté listo.
             loadBgSegModule(() => {
+                // Verificar que la caja todavía existe en el DOM antes de llamar setupViewer
                 const el = document.getElementById(`participant-${socketId}`);
-                if (!el) return;
+                if (!el) return; // la caja fue removida antes de que el módulo cargara
                 window.BgSegModule.setupViewer(el, socketId);
             });
         }
@@ -193,6 +230,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadParticipants = (users) => users.forEach(u => createBox(u.socket_id, u.username, false, false));
 
     window.removeParticipant = function (socketId) {
+        // FIX: destruir workers de BgSeg ANTES de remover el elemento del DOM
+        destroyBgSeg(socketId);
         const el = document.getElementById(`participant-${socketId}`);
         if (el) { el.remove(); reorganizeLayout(); }
         if (viewUsers && !viewUsers.classList.contains('hidden')) updateParticipantsListUI();
@@ -294,10 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── Whiteboard ────────────────────────────────────────────────────────
-    // El canvas de dibujo (whiteboard) es TRANSPARENTE — solo tiene trazos.
-    // El canvas de fondo (canvasBG) muestra el color CANVAS_BG SOLO cuando
-    // NO hay pantalla compartida. Así el borrador borra a transparente real
-    // y no daña ningún fondo de video/pantalla que esté debajo.
     if (whiteboard) {
         canvasBG = document.getElementById('avi-whiteboard-bg');
         if (!canvasBG) {
@@ -309,28 +344,26 @@ document.addEventListener('DOMContentLoaded', () => {
             whiteboard.parentElement.style.position = 'relative';
             whiteboard.parentElement.insertBefore(canvasBG, whiteboard);
         }
-        ctxBG = canvasBG.getContext('2d');
+        // FIX: willReadFrequently evita el warning de Canvas2D y acelera getImageData
+        ctxBG = canvasBG.getContext('2d', { willReadFrequently: true });
 
-        // El whiteboard es transparente (no tiene fondo propio)
         whiteboard.style.cssText += ';position:absolute;top:0;left:0;z-index:1;background:transparent;';
-        wctx = whiteboard.getContext('2d');
+        // FIX: willReadFrequently también en el canvas de dibujo principal
+        wctx = whiteboard.getContext('2d', { willReadFrequently: true });
         wctx.lineCap = 'round'; wctx.lineJoin = 'round';
 
         function resizeCanvases() {
             const p = whiteboard.parentElement, w = p.clientWidth, h = p.clientHeight;
 
-            // Guardar trazos actuales antes de redimensionar
             let imgData = null;
             if (whiteboard.width > 0 && whiteboard.height > 0) {
                 try { imgData = wctx.getImageData(0, 0, whiteboard.width, whiteboard.height); } catch (e) { }
             }
 
             canvasBG.width = w; canvasBG.height = h;
-            // Fondo del canvas BG: color oscuro por defecto
             ctxBG.fillStyle = CANVAS_BG; ctxBG.fillRect(0, 0, w, h);
 
             whiteboard.width = w; whiteboard.height = h;
-            // Restaurar trazos si los había
             if (imgData) try { wctx.putImageData(imgData, 0, 0); } catch (e) { }
         }
         window.addEventListener('resize', resizeCanvases);
@@ -350,28 +383,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!wctx) return;
         wctx.beginPath();
         if (mode === 'eraser') {
-            // ✅ FIX BORRADOR: destination-out borra a transparente real
-            // No pinta con ningún color — elimina los píxeles del trazo
-            // Funciona correctamente sin importar qué haya debajo (video, pantalla, etc.)
             wctx.globalCompositeOperation = 'destination-out';
             wctx.lineWidth = 40;
-            wctx.strokeStyle = 'rgba(0,0,0,1)'; // El color no importa con destination-out
+            wctx.strokeStyle = 'rgba(0,0,0,1)';
         } else {
             wctx.globalCompositeOperation = 'source-over';
             wctx.lineWidth = 3;
             wctx.strokeStyle = '#ffffff';
         }
         wctx.moveTo(x0, y0); wctx.lineTo(x1, y1); wctx.stroke(); wctx.closePath();
-        // Siempre restaurar a source-over después de borrar
         wctx.globalCompositeOperation = 'source-over';
         if (shouldEmit && typeof socket !== 'undefined')
             socket.emit('draw_stroke', { room: ROOM_ID, x0, y0, x1, y1, mode });
     };
     window.drawLineOnCanvas = window.drawLine;
 
-    // ── Ocultar/mostrar fondo según si hay pantalla compartida ───────────
-    // Cuando hay un fondo de video/pantalla, ocultamos el canvasBG oscuro
-    // para que el whiteboard transparente muestre el video correctamente.
     window.setWhiteboardBgVisible = function (visible) {
         if (!canvasBG) return;
         canvasBG.style.display = visible ? 'block' : 'none';
@@ -671,11 +697,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // SOCKET EVENTS — con reconexión robusta para Render
+    // SOCKET EVENTS
     // ══════════════════════════════════════════════════════════════════════
     if (typeof socket !== 'undefined') {
 
-        // ── FIX RENDER: Manejo de conexión y reconexión ───────────────────
         let _joined = false;
 
         function joinRoom() {
@@ -685,12 +710,11 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('connect', () => {
             console.log('✅ Socket conectado. ID:', socket.id);
             if (_joined) {
-                // Es una REconexión — limpiar cajas fantasma y re-unirse
                 showToast('Conexión restaurada ✓', 'success');
-                document.querySelectorAll('.participant').forEach(b => {
-                    // Quitar todas las cajas excepto la propia (que se recreará)
-                    b.remove();
-                });
+                // FIX: destruir TODOS los workers de BgSeg antes de limpiar DOM
+                // Evita workers zombi que acaparan CPU tras reconexión
+                destroyAllBgSeg();
+                document.querySelectorAll('.participant').forEach(b => b.remove());
                 mySocketId = null;
             }
             joinRoom();
@@ -721,13 +745,10 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('host_info', d => createBox(d.socket_id, d.username, true, false));
         socket.on('user_joined', d => { showToast(d.message, 'info'); createBox(d.socket_id, d.username, false, false); });
 
-        // ── FIX: room_users con delay y sin duplicar mi propia caja ──────
         socket.on('room_users', d => {
             setTimeout(() => {
                 (d.users || []).forEach(u => {
-                    // No recrear mi propia caja
                     if (u.socket_id === socket.id) return;
-                    // No duplicar cajas que ya existen
                     if (document.getElementById(`participant-${u.socket_id}`)) return;
                     createBox(u.socket_id, u.username, u.is_host || false, false);
                 });
@@ -762,7 +783,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const el = document.getElementById(`participant-${d.socket_id}`);
             if (!el) return;
             loadBgSegModule(() => {
-                window.BgSegModule.setupViewer(el, d.socket_id);
+                // FIX: re-verificar que el elemento siga en el DOM
+                const elNow = document.getElementById(`participant-${d.socket_id}`);
+                if (!elNow) return;
+                window.BgSegModule.setupViewer(elNow, d.socket_id);
             });
         });
         socket.on('bg_change_event', d => {
@@ -788,8 +812,6 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('draw_stroke', d => drawLine(d.x0, d.y0, d.x1, d.y1, d.mode, false));
         socket.on('force_clear_event', () => {
             if (wctx) {
-                // ✅ FIX: clearRect borra a transparente — no pinta color de fondo
-                // El canvasBG (color oscuro) sigue detrás intacto si no hay pantalla compartida
                 wctx.clearRect(0, 0, whiteboard.width, whiteboard.height);
             }
             showToast('Pizarra limpia');
@@ -838,13 +860,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ── Herramientas (incluyendo Varita) ──────────────────────────────────
-    // FIX: 'btn-bg' incluido en skipIds para que no interfiera con el modo activo
+    // ── Herramientas ──────────────────────────────────────────────────────
     const skipIds = ['btn-chat', 'btn-share', 'btn-hand', 'btn-reactions', 'btn-stats', 'btn-toggle-tools', 'btn-breakout', 'btn-bg'];
 
-    // FIX VARITA: Aseguramos que todos los botones de herramientas sean visibles
     tools.forEach(b => {
-        // Forzar visibilidad del botón en caso de que CSS no haya cargado
         b.style.display = b.style.display === 'none' ? '' : b.style.display;
 
         b.addEventListener('click', () => {
@@ -867,7 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ── BOTÓN FONDO: Compartir Pantalla / OBS al Fondo ───────────────────
+    // ── BOTÓN FONDO ───────────────────────────────────────────────────────
     if (btnBg) {
         btnBg.addEventListener('click', () => {
             const bgRoom = ROOM_ID + '_bg';

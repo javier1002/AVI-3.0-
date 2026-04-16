@@ -59,8 +59,8 @@ if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
 
     if IS_RENDER:
-        logger.info(f"🚀 Producción en puerto {port}")
+        logger.info(f"Producción en puerto {port}")
         socketio.run(app, host='0.0.0.0', port=port, debug=False)
     else:
-        logger.info(f"🛠️  Local en http://127.0.0.1:{port}")
+        logger.info(f"Local en http://127.0.0.1:{port}")
         socketio.run(app, host='127.0.0.1', port=port, debug=True, allow_unsafe_werkzeug=True)

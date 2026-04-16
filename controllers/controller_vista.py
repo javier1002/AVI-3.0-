@@ -1,24 +1,20 @@
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session, flash
 import logging
 import uuid
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session, flash
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 main_bp = Blueprint("main", __name__)
 
-# ── Base de datos de salas en memoria ────────────────────────────────────────
-ROOMS_DB = {}   # {room_id: password_or_None}
-
+#Base de datos de salas en memoria
+ROOMS_DB = {}  
 try:
     from controllers.websocket_controller import reactions_log
 except ImportError:
     reactions_log = {}
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PÁGINAS GENERALES
-# ═══════════════════════════════════════════════════════════════════════════════
+# PÁGINAS DE INICIO
 
 @main_bp.route("/", methods=["GET"])
 def home():
@@ -28,23 +24,19 @@ def home():
 def Readme():
     return render_template("Readme.html")
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # 1. CREAR SALA (HOST)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 @main_bp.route("/crea_sala", methods=["GET"])
 def crea_sala():
     room_id = str(uuid.uuid4())[:8]
     return render_template("crea_sala.html", room_id=room_id)
 
-
 @main_bp.route("/ir-sala", methods=["POST"])
 def ir_sala():
     """
     Recibe datos del Host, guarda contraseña y redirige a la sala.
     """
-    room_id  = (request.form.get("roomId") or request.form.get("room", "")).strip()
+    room_id = (request.form.get("roomId") or request.form.get("room", "")).strip()
     password = request.form.get("password", "").strip()
     username = request.form.get("username", "Host").strip()
 
@@ -60,13 +52,10 @@ def ir_sala():
 
     session[f'auth_{room_id}'] = True
     session['username'] = username
-    session['is_host']  = True
+    session['is_host'] = True
     return redirect(url_for("main.sala", room=room_id, username=username))
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # 2. INVITADO — UNIRSE
-# ═══════════════════════════════════════════════════════════════════════════════
 
 @main_bp.route("/join", methods=["GET"])
 def join_room():
@@ -76,23 +65,18 @@ def join_room():
         return redirect(url_for("main.home"))
     return render_template("invitacion.html", room=room_name)
 
-
 @main_bp.route("/unirse", methods=["POST"])
 def unirse():
     """Procesa el intento de entrada del invitado."""
-    room_id        = request.form.get("room", "").strip()
-    username       = request.form.get("username", "Invitado").strip() or "Invitado"
+    room_id = request.form.get("room", "").strip()
+    username = request.form.get("username", "Invitado").strip() or "Invitado"
     input_password = request.form.get("password", "").strip()
-
     if not room_id:
         return redirect(url_for("main.home"))
-
     session['username'] = username
-    session['is_host']  = False
-
+    session['is_host'] = False
     real_password = ROOMS_DB.get(room_id)
     logger.info(f"[LOGIN] {username} → {room_id}")
-
     if real_password:
         if input_password == real_password:
             session[f'auth_{room_id}'] = True
@@ -100,44 +84,28 @@ def unirse():
         elif input_password:
             flash("Contraseña incorrecta.", "error")
             logger.warning("[LOGIN] Contraseña incorrecta")
-        # else: sin contraseña → gatekeeper decide
     else:
         session[f'auth_{room_id}'] = True
         logger.info("[LOGIN] Acceso libre (sin contraseña)")
 
     return redirect(url_for("main.sala", room=room_id, username=username))
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 3. VISTA PRINCIPAL — con soporte para sub-salas (breakout rooms)
-#    El socket emite redirect_to_room → el cliente llama /sala?room=XXX&username=YYY
-#    Las sub-salas no tienen contraseña (se crean dinámicamente por el servidor)
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# 3. VISTA PRINCIPAL 
 @main_bp.route("/sala", methods=['GET', 'POST'])
 def sala():
     """
     Gatekeeper + render de la sala principal y sub-salas (breakout).
-
-    Parámetros GET:
-        room     — ID de la sala
-        username — nombre del usuario (opcional, usa session si no viene)
-        breakout — '1' si es una sub-sala (omite autenticación)
     """
-    room_id  = (request.args.get("room") or request.form.get("room", "")).strip()
+    room_id = (request.args.get("room") or request.form.get("room", "")).strip()
     username = (request.args.get("username") or request.form.get("username")
                 or session.get('username', 'Invitado')).strip()
     is_breakout = request.args.get("breakout") == "1"
 
     if not room_id:
         return redirect(url_for("main.home"))
-
-    # Actualizar username en sesión
     session['username'] = username
-
-    # ── Autenticación ─────────────────────────────────────────────────────
     stored_password = ROOMS_DB.get(room_id)
-    auth_key        = f'auth_{room_id}'
+    auth_key = f'auth_{room_id}'
 
     # Las sub-salas (breakout) no requieren contraseña — el host las crea dinámicamente
     # y el usuario ya estaba autenticado en la sala principal
@@ -170,8 +138,7 @@ def sala():
     def san(u):
         return (u or '').replace(' ', '').lower()[:20]
 
-    stream_id = san(username)  # stable — no cambia entre salas
-
+    stream_id = san(username)  
     if is_host:
         vdo_url = (
             f"https://vdo.ninja/?room={room_id}"
@@ -197,10 +164,7 @@ def sala():
     )
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 # API ESTADÍSTICAS
-# ═══════════════════════════════════════════════════════════════════════════════
-
 @main_bp.route("/summary/<room_id>")
 def get_summary(room_id):
     return jsonify(reactions_log.get(room_id, []))
