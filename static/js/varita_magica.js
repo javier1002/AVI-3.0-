@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Video oculto para MediaPipe
     const videoInput = document.createElement('video');
-    videoInput.style.display = 'none';
+    videoInput.className = 'hidden-el';
     document.body.appendChild(videoInput);
 
     // --- VARIABLES DE ESTADO ---

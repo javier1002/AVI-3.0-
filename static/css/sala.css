@@ -209,3 +209,207 @@ transform: scale(1.2);
     50% { transform: scale(1.05); }
     100% { transform: scale(1); }
 }
+
+/* UI CSS EXTRAÍDO DE LOS SCRIPTS */
+.modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-dialog-group {
+    background: #0f1021;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 28px;
+    width: 560px;
+    max-width: 95vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+}
+
+.modal-dialog-confirm {
+    background: rgba(15,17,30,0.98);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 32px 36px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+    animation: bcSlide .25s ease;
+}
+
+@keyframes bcSlide {
+    from { opacity: 0; transform: scale(.92) translateY(16px); }
+    to { opacity: 1; transform: none; }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-title {
+    margin: 0;
+    color: #fff;
+    font-size: 18px;
+}
+
+.modal-close-btn {
+    background: rgba(255,255,255,0.08);
+    border: none;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.form-label-control {
+    color: rgba(255,255,255,0.5);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+
+.form-input-control {
+    width: 100%;
+    margin-top: 4px;
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 9px;
+    color: #fff;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.group-participants-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-height: 80px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.group-chip {
+    padding: 8px 14px;
+    border-radius: 24px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    user-select: none;
+    transition: background 0.18s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.group-chip-none {
+    background: rgba(255,255,255,0.10);
+    color: rgba(255,255,255,0.65);
+    border: 1.5px solid rgba(255,255,255,0.14);
+}
+
+.group-chip-a {
+    background: rgba(74,144,217,0.25);
+    color: #7bb8f5;
+    border: 1.5px solid rgba(74,144,217,0.5);
+}
+
+.group-chip-b {
+    background: rgba(226,85,85,0.25);
+    color: #f58c8c;
+    border: 1.5px solid rgba(226,85,85,0.5);
+}
+
+.btn-primary-gradient {
+    padding: 10px 22px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg,#4a90d9,#7c4fd4);
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.btn-secondary-outline {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.btn-reject-modal {
+    padding: 12px 28px;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,.18);
+    background: rgba(255,255,255,.06);
+    color: rgba(255,255,255,.7);
+    font-size: 14px;
+    font-weight: 600;
+    flex: 1;
+    max-width: 160px;
+}
+
+.btn-accept-modal {
+    padding: 12px 28px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg,#4a90d9,#7c4fd4);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    transition: opacity .15s;
+    flex: 1;
+    max-width: 160px;
+}
+
+.flex-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.hidden-el {
+    display: none !important;
+}
+
+.whiteboard-layer {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    background: transparent;
+}
+
+.bg-segmentation-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 99;
+    background: transparent !important;
+    pointer-events: none;
+}

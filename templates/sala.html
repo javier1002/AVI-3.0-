@@ -81,7 +81,7 @@
 {# Escenario principal #}
 <div id="avi-stage">
     <div id="avi-background" class="avi-layer">
-        <iframe src="{{ bgViewUrl }}" allow="autoplay; muted" style="width:100%;height:100%;border:0;"></iframe>
+        <iframe src="{{ bgViewUrl }}" allow="autoplay" style="width:100%;height:100%;border:0;"></iframe>
     </div>
     <div id="avi-participants" class="avi-layer"></div>
     <canvas id="avi-whiteboard"></canvas>
@@ -125,5 +125,4 @@
 <script src="{{ url_for('static', filename='js/bg_segmentation.js') }}"></script>
 <script src="{{ url_for('static', filename='js/sala_ui.js') }}"></script>
 <script src="{{ url_for('static', filename='js/varita_magica.js') }}"></script>
-<script src="{{ url_for('static', filename='js/dock_colaborativo.js') }}"></script>
 {% endblock %}

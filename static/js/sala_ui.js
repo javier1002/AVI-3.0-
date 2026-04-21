@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.requestToggleVisibility = function (targetId) {
         const box = document.getElementById(`participant-${targetId}`);
-        socket.emit('toggle_visibility', { room: ROOM_ID, target_id: targetId, visible: !(box && box.style.display !== 'none') });
+        socket.emit('toggle_visibility', { room: ROOM_ID, target_id: targetId, visible: !(box && !box.classList.contains('hidden-el')) });
     };
     window.updateParticipantsListUI = function () {
         if (typeof socket !== 'undefined') socket.emit('get_room_info', { room: ROOM_ID });
@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Layout ────────────────────────────────────────────────────────────
     function reorganizeLayout() {
-        const visible = Array.from(document.querySelectorAll('.participant')).filter(b => b.style.display !== 'none');
+        const visible = Array.from(document.querySelectorAll('.participant')).filter(b => !b.classList.contains('hidden-el'));
         const hostBox = visible.find(b => b.classList.contains('host'));
         const guests = visible.filter(b => !b.classList.contains('host'))
             .sort((a, b) => a.innerText.toUpperCase() < b.innerText.toUpperCase() ? -1 : 1);
@@ -347,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // FIX: willReadFrequently evita el warning de Canvas2D y acelera getImageData
         ctxBG = canvasBG.getContext('2d', { willReadFrequently: true });
 
-        whiteboard.style.cssText += ';position:absolute;top:0;left:0;z-index:1;background:transparent;';
+        whiteboard.classList.add('whiteboard-layer');
         // FIX: willReadFrequently también en el canvas de dibujo principal
         wctx = whiteboard.getContext('2d', { willReadFrequently: true });
         wctx.lineCap = 'round'; wctx.lineJoin = 'round';
@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.setWhiteboardBgVisible = function (visible) {
         if (!canvasBG) return;
-        canvasBG.style.display = visible ? 'block' : 'none';
+        if (visible) canvasBG.classList.remove('hidden-el'); else canvasBG.classList.add('hidden-el');
     };
 
     // ══════════════════════════════════════════════════════════════════════
@@ -413,36 +413,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const modal = document.createElement('div');
         modal.id = 'group-modal';
-        modal.style.cssText = `
-            display:none; position:fixed; inset:0; z-index:9999;
-            background:rgba(0,0,0,0.75); backdrop-filter:blur(6px);
-            align-items:center; justify-content:center;`;
-
+        modal.className = 'modal-backdrop';
+        modal.className = 'modal-backdrop hidden-el';
         modal.innerHTML = `
-        <div style="background:#0f1021;border:1px solid rgba(255,255,255,0.12);
-                    border-radius:20px;padding:28px;width:560px;max-width:95vw;
-                    max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.8);">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                <h3 style="margin:0;color:#fff;font-size:18px;">🏫 Dividir en grupos</h3>
-                <button id="group-modal-close"
-                    style="background:rgba(255,255,255,0.08);border:none;color:#fff;
-                           width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;">✕</button>
+        <div class="modal-dialog-group">
+            <div class="modal-header">
+                <h3 class="modal-title">🏫 Dividir en grupos</h3>
+                <button id="group-modal-close" class="modal-close-btn">✕</button>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
                 <div>
-                    <label style="color:rgba(255,255,255,0.5);font-size:11px;font-weight:700;
-                                  text-transform:uppercase;letter-spacing:.06em;">Nombre Sala A</label>
-                    <input id="group-name-a" value="Grupo A"
-                        style="width:100%;margin-top:4px;padding:8px 10px;background:rgba(255,255,255,0.06);
-                               border:1px solid rgba(255,255,255,0.14);border-radius:9px;color:#fff;font-size:13px;box-sizing:border-box;">
+                    <label class="form-label-control">Nombre Sala A</label>
+                    <input id="group-name-a" value="Grupo A" class="form-input-control">
                 </div>
                 <div>
-                    <label style="color:rgba(255,255,255,0.5);font-size:11px;font-weight:700;
-                                  text-transform:uppercase;letter-spacing:.06em;">Nombre Sala B</label>
-                    <input id="group-name-b" value="Grupo B"
-                        style="width:100%;margin-top:4px;padding:8px 10px;background:rgba(255,255,255,0.06);
-                               border:1px solid rgba(255,255,255,0.14);border-radius:9px;color:#fff;font-size:13px;box-sizing:border-box;">
+                    <label class="form-label-control">Nombre Sala B</label>
+                    <input id="group-name-b" value="Grupo B" class="form-input-control">
                 </div>
             </div>
 
@@ -450,9 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Haz clic en cada participante para asignarlo a un grupo. Puedes asignar al host también.
             </p>
 
-            <div id="group-participants-list"
-                style="display:flex;flex-wrap:wrap;gap:10px;min-height:80px;
-                       background:rgba(255,255,255,0.03);border-radius:12px;padding:12px;margin-bottom:16px;">
+            <div id="group-participants-list" class="group-participants-container">
             </div>
 
             <div style="display:flex;gap:16px;margin-bottom:18px;font-size:12px;color:rgba(255,255,255,0.5);">
@@ -465,15 +450,10 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <div style="display:flex;gap:10px;justify-content:flex-end;">
-                <button id="group-auto-btn"
-                    style="padding:10px 18px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);
-                           background:rgba(255,255,255,0.06);color:#fff;cursor:pointer;font-size:13px;">
+                <button id="group-auto-btn" class="btn-secondary-outline">
                     ⚡ Dividir automático
                 </button>
-                <button id="group-send-btn"
-                    style="padding:10px 22px;border-radius:10px;border:none;
-                           background:linear-gradient(135deg,#4a90d9,#7c4fd4);
-                           color:#fff;cursor:pointer;font-size:13px;font-weight:700;">
+                <button id="group-send-btn" class="btn-primary-gradient">
                     Enviar a grupos
                 </button>
             </div>
@@ -491,13 +471,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function openGroupModal() {
         buildGroupModal();
         const modal = document.getElementById('group-modal');
-        modal.style.display = 'flex';
+        modal.classList.remove('hidden-el');
         renderGroupParticipants();
     }
 
     function closeGroupModal() {
         const modal = document.getElementById('group-modal');
-        if (modal) modal.style.display = 'none';
+        if (modal) modal.classList.add('hidden-el');
     }
 
     function renderGroupParticipants() {
@@ -506,7 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '';
 
         const allBoxes = Array.from(document.querySelectorAll('.participant'))
-            .filter(b => b.style.display !== 'none');
+            .filter(b => !b.classList.contains('hidden-el'));
 
         _groupParticipants = allBoxes.map(b => ({
             socket_id: b.id.replace('participant-', ''),
@@ -518,11 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
         _groupParticipants.forEach((p) => {
             const chip = document.createElement('div');
             chip.id = `gchip-${p.socket_id}`;
-            chip.style.cssText = `
-                padding:8px 14px; border-radius:24px; cursor:pointer;
-                font-size:13px; font-weight:600; user-select:none;
-                transition:background 0.18s, transform 0.1s;
-                display:flex; align-items:center; gap:6px;`;
+            chip.className = 'group-chip';
             updateChipStyle(chip, p.group);
             chip.innerHTML = `${p.isHost ? '👑 ' : ''}${p.username}`;
 
@@ -538,12 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateChipStyle(chip, group) {
-        const styles = {
-            none: 'background:rgba(255,255,255,0.10);color:rgba(255,255,255,0.65);border:1.5px solid rgba(255,255,255,0.14);',
-            a: 'background:rgba(74,144,217,0.25);color:#7bb8f5;border:1.5px solid rgba(74,144,217,0.5);',
-            b: 'background:rgba(226,85,85,0.25);color:#f58c8c;border:1.5px solid rgba(226,85,85,0.5);',
-        };
-        chip.style.cssText += styles[group] || styles.none;
+        chip.className = `group-chip group-chip-${group || 'none'}`;
     }
 
     function autoAssign() {
@@ -616,28 +587,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const modal = document.createElement('div');
         modal.id = 'breakout-confirm-modal';
-        modal.style.cssText = `
-            position:fixed; inset:0; z-index:9999;
-            background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);
-            display:flex; align-items:center; justify-content:center;
-        `;
-
+        modal.className = 'modal-backdrop flex-center';
+        modal.className = 'modal-backdrop flex-center';
+        
         const box = document.createElement('div');
-        box.style.cssText = `
-            background:rgba(15,17,30,0.98);
-            border:1px solid rgba(255,255,255,0.12);
-            border-radius:20px; padding:32px 36px;
-            max-width:420px; width:90%; text-align:center;
-            box-shadow:0 24px 60px rgba(0,0,0,0.7);
-            animation: bcSlide .25s ease;
-        `;
+        box.className = 'modal-dialog-confirm';
 
-        if (!document.getElementById('bc-anim')) {
-            const st = document.createElement('style');
-            st.id = 'bc-anim';
-            st.textContent = `@keyframes bcSlide { from { opacity:0; transform:scale(.92) translateY(16px); } to { opacity:1; transform:none; } }`;
-            document.head.appendChild(st);
-        }
+        // Evitar múltiples inyecciones del style interno de la animación. 
+        // Eliminado, ya que bcSlide ahora está en sala.css
 
         box.innerHTML = `
             <div style="font-size:42px;margin-bottom:12px;">🏫</div>
@@ -647,18 +604,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <strong style="color:#7c9eff;font-size:16px;">${roomName}</strong>
             </p>
             <div style="display:flex;gap:12px;justify-content:center;">
-                <button id="bc-accept" style="
-                    padding:12px 28px;border-radius:12px;border:none;cursor:pointer;
-                    background:linear-gradient(135deg,#4a90d9,#7c4fd4);
-                    color:#fff;font-size:14px;font-weight:700;
-                    transition:opacity .15s;flex:1;max-width:160px;">
+                <button id="bc-accept" class="btn-accept-modal">
                     ✓ Entrar
                 </button>
-                <button id="bc-reject" style="
-                    padding:12px 28px;border-radius:12px;cursor:pointer;
-                    border:1px solid rgba(255,255,255,.18);
-                    background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);
-                    font-size:14px;font-weight:600;flex:1;max-width:160px;">
+                <button id="bc-reject" class="btn-reject-modal">
                     ✕ Quedarme
                 </button>
             </div>
@@ -823,7 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         socket.on('toggle_visibility_event', d => {
             const box = document.getElementById(`participant-${d.target_id}`);
-            if (box) { box.style.display = d.visible ? 'flex' : 'none'; reorganizeLayout(); }
+            if (box) { box.classList.toggle('hidden-el', !d.visible); reorganizeLayout(); }
             const btn = document.getElementById(`btn-vis-${d.target_id}`);
             if (btn) { btn.innerHTML = d.visible ? '👁️' : '🚫'; btn.style.background = d.visible ? '#fff' : '#ffebee'; btn.style.color = d.visible ? '#333' : '#c62828'; btn.style.borderColor = d.visible ? '#ccc' : '#ef9a9a'; }
         });
@@ -843,7 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const container = usersList || viewUsers; if (!container) return;
             let html = `<div style="padding:12px 15px;border-bottom:1px solid #ddd;font-weight:bold;background:#f8f9fa;position:sticky;top:0;">Conectados (${d.total})</div><ul style="list-style:none;padding:0;margin:0;">`;
             const row = (p, isHostRow) => {
-                const uid = p.socket_id || p.sid, box = document.getElementById(`participant-${uid}`), hidden = box && box.style.display === 'none';
+                const uid = p.socket_id || p.sid, box = document.getElementById(`participant-${uid}`), hidden = box && box.classList.contains('hidden-el');
                 const bS = hidden ? 'background:#ffebee;color:#c62828;border:1px solid #ef9a9a;' : 'background:#fff;color:#333;border:1px solid #ccc;';
                 return `<li style="padding:12px 15px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;background:#fff;">
                     <div><span style="margin-right:8px;font-size:1.2em;">${isHostRow ? '👑' : '👤'}</span><b>${p.username}</b></div>
@@ -864,7 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const skipIds = ['btn-chat', 'btn-share', 'btn-hand', 'btn-reactions', 'btn-stats', 'btn-toggle-tools', 'btn-breakout', 'btn-bg'];
 
     tools.forEach(b => {
-        b.style.display = b.style.display === 'none' ? '' : b.style.display;
+        b.classList.toggle('hidden-el');
 
         b.addEventListener('click', () => {
             if (skipIds.includes(b.id)) return;

@@ -21,45 +21,48 @@ function cerrarModalAgenda() {
 }
 
 // Interceptar el envío del formulario
-document.getElementById('form-agenda').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById('btn-crear-evento');
-    const originalText = btn.innerText;
-    btn.innerText = "Creando";
-    btn.disabled = true;
+const formAgenda = document.getElementById('form-agenda');
+if (formAgenda) {
+    formAgenda.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btn-crear-evento');
+        const originalText = btn.innerText;
+        btn.innerText = "Creando";
+        btn.disabled = true;
 
-    // Preparar datos
-    const data = {
-        titulo: document.getElementById('agenda-titulo').value,
-        inicio: new Date(document.getElementById('agenda-inicio').value).toISOString(),
-        fin: new Date(document.getElementById('agenda-fin').value).toISOString()
-    };
+        // Preparar datos
+        const data = {
+            titulo: document.getElementById('agenda-titulo').value,
+            inicio: new Date(document.getElementById('agenda-inicio').value).toISOString(),
+            fin: new Date(document.getElementById('agenda-fin').value).toISOString()
+        };
 
-    try {
-        const response = await fetch('/calendar/crear-reunion', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+        try {
+            const response = await fetch('/calendar/crear-reunion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
 
-        const result = await response.json();
+            const result = await response.json();
 
-        if (response.ok) {
-            alert(`¡ÉXITO!\n\nClase creada en Google Calendar.\n\nLink Invitación: ${result.sala_link}`);
-            cerrarModalAgenda();
-        } else {
-            // Si no se ha logueado
-            if (response.status === 401) {
-                alert(" Error de Permisos: Primero debes hacer clic en 'Conectar Cuenta Google'.");
+            if (response.ok) {
+                alert(`¡ÉXITO!\n\nClase creada en Google Calendar.\n\nLink Invitación: ${result.sala_link}`);
+                cerrarModalAgenda();
             } else {
-                alert("Error: " + (result.error || "Desconocido"));
+                // Si no se ha logueado
+                if (response.status === 401) {
+                    alert(" Error de Permisos: Primero debes hacer clic en 'Conectar Cuenta Google'.");
+                } else {
+                    alert("Error: " + (result.error || "Desconocido"));
+                }
             }
+        } catch (err) {
+            console.error(err);
+            alert("Error de conexión con el servidor.");
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
         }
-    } catch (err) {
-        console.error(err);
-        alert("Error de conexión con el servidor.");
-    } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
-    }
-});
+    });
+}

@@ -199,7 +199,7 @@ function makeViewer(boxEl, pubSocketId){
             cvEl=document.createElement('canvas');
             cvEl.className='bg-person-canvas';
             cvEl.width=320;cvEl.height=240;
-            cvEl.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:99;background:transparent!important;pointer-events:none;';
+            cvEl.className = 'bg-person-canvas bg-segmentation-layer';
             cvEl.getContext('2d',{alpha:true,willReadFrequently:true});
             wrap.appendChild(cvEl);
             wrap.style.background='transparent';
