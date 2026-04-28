@@ -62,5 +62,6 @@ if __name__ == "__main__":
         logger.info(f"Producción en puerto {port}")
         socketio.run(app, host='0.0.0.0', port=port, debug=False)
     else:
-        logger.info(f"Local en http://127.0.0.1:{port}")
-        socketio.run(app, host='127.0.0.1', port=port, debug=True, allow_unsafe_werkzeug=True)
+        # AQUÍ ESTÁ EL CAMBIO: Cambiamos 127.0.0.1 por 0.0.0.0
+        logger.info(f"Servidor expuesto en puerto {port} (0.0.0.0)")
+        socketio.run(app, host='0.0.0.0', port=port, debug=True, allow_unsafe_werkzeug=True)
