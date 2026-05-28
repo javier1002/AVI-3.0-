@@ -18,7 +18,8 @@ except ImportError:
 
 @main_bp.route("/", methods=["GET"])
 def home():
-    return render_template("home.html")
+    room_id = str(uuid.uuid4())[:8]
+    return render_template("home.html", room_id=room_id)
 
 @main_bp.route("/Readme", methods=["GET"])
 def Readme():
@@ -28,8 +29,7 @@ def Readme():
 
 @main_bp.route("/crea_sala", methods=["GET"])
 def crea_sala():
-    room_id = str(uuid.uuid4())[:8]
-    return render_template("crea_sala.html", room_id=room_id)
+    return redirect(url_for("main.home"))
 
 @main_bp.route("/ir-sala", methods=["POST"])
 def ir_sala():
@@ -41,7 +41,7 @@ def ir_sala():
     username = request.form.get("username", "Host").strip()
 
     if not room_id:
-        return redirect(url_for("main.crea_sala"))
+        return redirect(url_for("main.home"))
 
     if password:
         ROOMS_DB[room_id] = password

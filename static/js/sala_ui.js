@@ -1,4 +1,4 @@
-/* static/js/sala_ui.js - v10 — fixes: willReadFrequently, BgSeg destroy on reconnect, setupViewer race condition */
+/* static/js/sala_ui.js - v11 — WYSIWIS: cualquier usuario puede ocultar/mostrar videos, sincronizado para todos */
 document.addEventListener('DOMContentLoaded', () => {
 
     const wasHost = sessionStorage.getItem('is_host') === 'true';
@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dockContainer = document.getElementById('collab-dock');
     const tools = document.querySelectorAll('#avi-tools button');
     const btnBg = document.getElementById('btn-bg');
+    const btnToggleVideosBtn = document.getElementById('btn-toggle-videos');
 
     // ── Estado ────────────────────────────────────────────────────────────
     let wctx = null, canvasBG = null, ctxBG = null;
@@ -52,6 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const CANVAS_BG = '#1a1a2e';
     let reactionChart = null;
     let mySocketId = null;
+    let myVideoHidden = false;
+    let videosHidden = false;
 
     // ── Sonidos ───────────────────────────────────────────────────────────
     const chatSound = new Audio('https://cdn.freesound.org/previews/341/341695_5858296-lq.mp3');
@@ -96,12 +99,34 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.emit('change_bg', { room: ROOM_ID, socket_id: socketId, color });
     };
 
+    // FIX: requestToggleVisibility usa style.display consistente
     window.requestToggleVisibility = function (targetId) {
         const box = document.getElementById(`participant-${targetId}`);
-        socket.emit('toggle_visibility', { room: ROOM_ID, target_id: targetId, visible: !(box && !box.classList.contains('hidden-el')) });
+        const isVisible = box && box.style.display !== 'none';
+        socket.emit('toggle_visibility', { room: ROOM_ID, target_id: targetId, include_self: true });
     };
     window.updateParticipantsListUI = function () {
         if (typeof socket !== 'undefined') socket.emit('get_room_info', { room: ROOM_ID });
+    };
+
+    window.toggleMyVideo = function () {
+        myVideoHidden = !myVideoHidden;
+        const myBox = mySocketId ? document.getElementById(`participant-${mySocketId}`) : null;
+        if (myBox) myBox.style.display = myVideoHidden ? 'none' : '';
+        showToast(myVideoHidden ? 'Tu video está oculto ' : 'Tu video es visible ', myVideoHidden ? 'info' : 'success');
+        updateParticipantsListUI();
+    };
+
+    // FIX: toggleLocalBox usa style.display directo, sin mezclar con classList
+    window.toggleLocalBox = function (uid) {
+        const box = document.getElementById(`participant-${uid}`);
+        if (!box) return;
+        const isVisible = box.style.display !== 'none';
+        socket.emit('toggle_visibility', {
+            room: ROOM_ID,
+            target_id: uid,
+            visible: !isVisible
+        });
     };
 
     // ── Helper: cargar BgSegModule ────────────────────────────────────────
@@ -113,8 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.head.appendChild(s);
     }
 
-    // ── FIX: destroy segmentation workers for a specific socketId ─────────
-    // Llamar antes de eliminar cualquier caja del DOM para evitar workers zombi
     function destroyBgSeg(socketId) {
         try {
             if (window.BgSegModule && typeof window.BgSegModule.destroy === 'function') {
@@ -125,13 +148,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ── FIX: destroy ALL segmentation workers (usado en reconexión) ────────
     function destroyAllBgSeg() {
         try {
             if (window.BgSegModule && typeof window.BgSegModule.destroyAll === 'function') {
                 window.BgSegModule.destroyAll();
             } else if (window.BgSegModule && typeof window.BgSegModule.destroy === 'function') {
-                // Fallback: destruir por cada caja existente
                 document.querySelectorAll('.participant').forEach(b => {
                     const sid = b.id.replace('participant-', '');
                     window.BgSegModule.destroy(sid);
@@ -149,7 +170,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.participant').forEach(b => {
             const lbl = b.querySelector('.label-participant');
             if (lbl && lbl.dataset.username === username) {
-                // FIX: destruir BgSeg del duplicado antes de removerlo
                 destroyBgSeg(b.id.replace('participant-', ''));
                 b.remove();
             }
@@ -202,13 +222,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         } else {
-            // FIX RACE CONDITION: si BgSegModule aún no está cargado, marcar como pending
-            // En lugar de cargar el módulo y llamar setupViewer inmediatamente,
-            // esperamos a que la caja esté en el DOM y el módulo esté listo.
             loadBgSegModule(() => {
-                // Verificar que la caja todavía existe en el DOM antes de llamar setupViewer
                 const el = document.getElementById(`participant-${socketId}`);
-                if (!el) return; // la caja fue removida antes de que el módulo cargara
+                if (!el) return;
                 window.BgSegModule.setupViewer(el, socketId);
             });
         }
@@ -230,7 +246,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadParticipants = (users) => users.forEach(u => createBox(u.socket_id, u.username, false, false));
 
     window.removeParticipant = function (socketId) {
-        // FIX: destruir workers de BgSeg ANTES de remover el elemento del DOM
         destroyBgSeg(socketId);
         const el = document.getElementById(`participant-${socketId}`);
         if (el) { el.remove(); reorganizeLayout(); }
@@ -253,8 +268,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── Layout ────────────────────────────────────────────────────────────
+    // FIX: reorganizeLayout usa style.display consistentemente
     function reorganizeLayout() {
-        const visible = Array.from(document.querySelectorAll('.participant')).filter(b => !b.classList.contains('hidden-el'));
+        const visible = Array.from(document.querySelectorAll('.participant')).filter(b => b.style.display !== 'none');
         const hostBox = visible.find(b => b.classList.contains('host'));
         const guests = visible.filter(b => !b.classList.contains('host'))
             .sort((a, b) => a.innerText.toUpperCase() < b.innerText.toUpperCase() ? -1 : 1);
@@ -344,11 +360,9 @@ document.addEventListener('DOMContentLoaded', () => {
             whiteboard.parentElement.style.position = 'relative';
             whiteboard.parentElement.insertBefore(canvasBG, whiteboard);
         }
-        // FIX: willReadFrequently evita el warning de Canvas2D y acelera getImageData
         ctxBG = canvasBG.getContext('2d', { willReadFrequently: true });
 
         whiteboard.classList.add('whiteboard-layer');
-        // FIX: willReadFrequently también en el canvas de dibujo principal
         wctx = whiteboard.getContext('2d', { willReadFrequently: true });
         wctx.lineCap = 'round'; wctx.lineJoin = 'round';
 
@@ -381,18 +395,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.drawLine = function (x0, y0, x1, y1, mode, shouldEmit) {
         if (!wctx) return;
-        wctx.beginPath();
+
         if (mode === 'eraser') {
+            const r = 30;
+            wctx.save();
             wctx.globalCompositeOperation = 'destination-out';
-            wctx.lineWidth = 40;
+            wctx.lineCap = 'round';
+            wctx.lineJoin = 'round';
+            wctx.lineWidth = r * 2;
             wctx.strokeStyle = 'rgba(0,0,0,1)';
+            wctx.beginPath();
+            wctx.moveTo(x0, y0);
+            wctx.lineTo(x1, y1);
+            wctx.stroke();
+            const pad = 2;
+            const bx = Math.min(x0, x1) - r - pad;
+            const by = Math.min(y0, y1) - r - pad;
+            const bw = Math.abs(x1 - x0) + (r + pad) * 2;
+            const bh = Math.abs(y1 - y0) + (r + pad) * 2;
+            wctx.clearRect(bx, by, bw, bh);
+            wctx.restore();
         } else {
             wctx.globalCompositeOperation = 'source-over';
             wctx.lineWidth = 3;
             wctx.strokeStyle = '#ffffff';
+            wctx.beginPath();
+            wctx.moveTo(x0, y0); wctx.lineTo(x1, y1); wctx.stroke(); wctx.closePath();
+            wctx.globalCompositeOperation = 'source-over';
         }
-        wctx.moveTo(x0, y0); wctx.lineTo(x1, y1); wctx.stroke(); wctx.closePath();
-        wctx.globalCompositeOperation = 'source-over';
+
         if (shouldEmit && typeof socket !== 'undefined')
             socket.emit('draw_stroke', { room: ROOM_ID, x0, y0, x1, y1, mode });
     };
@@ -404,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ══════════════════════════════════════════════════════════════════════
-    // SALAS EN GRUPO — Modal host para dividir participantes
+    // SALAS EN GRUPO
     // ══════════════════════════════════════════════════════════════════════
     let _groupParticipants = [];
 
@@ -414,56 +445,108 @@ document.addEventListener('DOMContentLoaded', () => {
         const modal = document.createElement('div');
         modal.id = 'group-modal';
         modal.className = 'modal-backdrop';
-        modal.className = 'modal-backdrop hidden-el';
         modal.innerHTML = `
-        <div class="modal-dialog-group">
-            <div class="modal-header">
-                <h3 class="modal-title">🏫 Dividir en grupos</h3>
-                <button id="group-modal-close" class="modal-close-btn">✕</button>
+        <div style="
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 28px 32px;
+            width: 580px;
+            max-width: 95vw;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+            font-family: 'Segoe UI', sans-serif;
+        ">
+            <!-- Encabezado -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h3 style="margin:0;color:#1a1a2e;font-size:20px;font-weight:700;">🏫 Dividir en grupos</h3>
+                <button id="group-modal-close" style="
+                    background:#f0f0f5;border:none;color:#555;width:34px;height:34px;
+                    border-radius:50%;cursor:pointer;font-size:16px;line-height:34px;
+                    display:flex;align-items:center;justify-content:center;
+                ">✕</button>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <!-- Nombres de salas -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
                 <div>
-                    <label class="form-label-control">Nombre Sala A</label>
-                    <input id="group-name-a" value="Grupo A" class="form-input-control">
+                    <label style="color:#666;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Nombre Sala A</label>
+                    <input id="group-name-a" value="Grupo A" style="
+                        width:100%;margin-top:5px;padding:9px 12px;
+                        background:#f7f8fc;border:1.5px solid #d0d5e8;
+                        border-radius:9px;color:#1a1a2e;font-size:13px;
+                        box-sizing:border-box;outline:none;
+                    ">
                 </div>
                 <div>
-                    <label class="form-label-control">Nombre Sala B</label>
-                    <input id="group-name-b" value="Grupo B" class="form-input-control">
+                    <label style="color:#666;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Nombre Sala B</label>
+                    <input id="group-name-b" value="Grupo B" style="
+                        width:100%;margin-top:5px;padding:9px 12px;
+                        background:#f7f8fc;border:1.5px solid #d0d5e8;
+                        border-radius:9px;color:#1a1a2e;font-size:13px;
+                        box-sizing:border-box;outline:none;
+                    ">
                 </div>
             </div>
 
-            <p style="color:rgba(255,255,255,0.4);font-size:12px;margin:0 0 14px;">
-                Haz clic en cada participante para asignarlo a un grupo. Puedes asignar al host también.
+            <p style="color:#777;font-size:12px;margin:0 0 14px;">
+                Haz clic en cada participante para asignarlo (A → B → Sin asignar).
             </p>
 
-            <div id="group-participants-list" class="group-participants-container">
+            <!-- Lista de participantes -->
+            <div id="group-participants-list" style="
+                display:flex;flex-wrap:wrap;gap:10px;min-height:70px;
+                background:#f7f8fc;border:1.5px solid #e0e4f0;
+                border-radius:12px;padding:14px;margin-bottom:16px;
+            ">
+                <p style="color:#aaa;font-size:13px;margin:auto;">Cargando participantes...</p>
             </div>
 
-            <div style="display:flex;gap:16px;margin-bottom:18px;font-size:12px;color:rgba(255,255,255,0.5);">
-                <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;
-                                   background:#4a90d9;margin-right:5px;vertical-align:middle;"></span>Sala A</span>
-                <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;
-                                   background:#e25555;margin-right:5px;vertical-align:middle;"></span>Sala B</span>
-                <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;
-                                   background:rgba(255,255,255,0.15);margin-right:5px;vertical-align:middle;"></span>Sin asignar</span>
+            <!-- Leyenda -->
+            <div style="display:flex;gap:18px;margin-bottom:20px;font-size:12px;color:#555;">
+                <span style="display:flex;align-items:center;gap:5px;">
+                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#4a90d9;"></span>Sala A
+                </span>
+                <span style="display:flex;align-items:center;gap:5px;">
+                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#e25555;"></span>Sala B
+                </span>
+                <span style="display:flex;align-items:center;gap:5px;">
+                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ccc;"></span>Sin asignar
+                </span>
             </div>
 
+            <!-- Botones -->
             <div style="display:flex;gap:10px;justify-content:flex-end;">
-                <button id="group-auto-btn" class="btn-secondary-outline">
-                    ⚡ Dividir automático
-                </button>
-                <button id="group-send-btn" class="btn-primary-gradient">
-                    Enviar a grupos
-                </button>
+                <button id="group-auto-btn" style="
+                    padding:10px 20px;border-radius:10px;
+                    border:1.5px solid #c0c8e0;background:#f0f2fb;
+                    color:#333;cursor:pointer;font-size:13px;font-weight:600;
+                ">⚡ Dividir automático</button>
+                <button id="group-send-btn" style="
+                    padding:10px 22px;border-radius:10px;border:none;
+                    background:linear-gradient(135deg,#4a90d9,#7c4fd4);
+                    color:#fff;cursor:pointer;font-size:13px;font-weight:700;
+                ">📤 Enviar a grupos</button>
             </div>
         </div>`;
 
         document.body.appendChild(modal);
 
+        // Estilos infalibles directamente en el elemento (no depende de clases CSS externas)
+        Object.assign(modal.style, {
+            display: 'none',
+            position: 'fixed',
+            inset: '0',
+            top: '0', left: '0', right: '0', bottom: '0',
+            zIndex: '99999',
+            background: 'rgba(0,0,0,0.80)',
+            backdropFilter: 'blur(6px)',
+            alignItems: 'center',
+            justifyContent: 'center'
+        });
+
         document.getElementById('group-modal-close').addEventListener('click', closeGroupModal);
         modal.addEventListener('click', e => { if (e.target === modal) closeGroupModal(); });
-
         document.getElementById('group-auto-btn').addEventListener('click', autoAssign);
         document.getElementById('group-send-btn').addEventListener('click', sendToGroups);
     }
@@ -471,13 +554,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function openGroupModal() {
         buildGroupModal();
         const modal = document.getElementById('group-modal');
-        modal.classList.remove('hidden-el');
+        modal.style.display = 'flex';
         renderGroupParticipants();
     }
 
     function closeGroupModal() {
         const modal = document.getElementById('group-modal');
-        if (modal) modal.classList.add('hidden-el');
+        if (modal) modal.style.display = 'none';
     }
 
     function renderGroupParticipants() {
@@ -485,39 +568,62 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) return;
         container.innerHTML = '';
 
-        const allBoxes = Array.from(document.querySelectorAll('.participant'))
-            .filter(b => !b.classList.contains('hidden-el'));
+        const allBoxes = Array.from(document.querySelectorAll('#avi-participants .participant'))
+            .filter(b => b.style.display !== 'none');
+
+        if (allBoxes.length === 0) {
+            container.innerHTML = '<p style="color:#aaa;font-size:13px;margin:auto;">No hay participantes en la sala.</p>';
+            return;
+        }
 
         _groupParticipants = allBoxes.map(b => ({
             socket_id: b.id.replace('participant-', ''),
-            username: b.dataset.username,
+            username: b.dataset.username || b.id.replace('participant-', ''),
             isHost: b.classList.contains('host'),
             group: b.dataset.groupAssign || 'none'
         }));
 
-        _groupParticipants.forEach((p) => {
+        const groupLabel = { none: '⬜ Sin asignar', a: '🔵 Sala A', b: '🔴 Sala B' };
+
+        _groupParticipants.forEach(p => {
             const chip = document.createElement('div');
             chip.id = `gchip-${p.socket_id}`;
-            chip.className = 'group-chip';
             updateChipStyle(chip, p.group);
-            chip.innerHTML = `${p.isHost ? '👑 ' : ''}${p.username}`;
-
+            chip.title = `Clic para cambiar grupo de ${p.username}`;
+            chip.innerHTML = `
+                <span style="font-size:14px;">${p.isHost ? '👑' : '👤'}</span>
+                <span>${p.username}</span>
+                <span style="font-size:10px;opacity:0.7;" id="gchip-label-${p.socket_id}">${groupLabel[p.group]}</span>
+            `;
             chip.addEventListener('click', () => {
                 const next = p.group === 'none' ? 'a' : p.group === 'a' ? 'b' : 'none';
                 p.group = next;
                 const box = document.getElementById(`participant-${p.socket_id}`);
                 if (box) box.dataset.groupAssign = next;
                 updateChipStyle(chip, next);
+                const lbl = document.getElementById(`gchip-label-${p.socket_id}`);
+                if (lbl) lbl.textContent = groupLabel[next];
             });
             container.appendChild(chip);
         });
     }
 
     function updateChipStyle(chip, group) {
-        chip.className = `group-chip group-chip-${group || 'none'}`;
+        const styles = {
+            none: 'background:#eef0f8;color:#666;border:1.5px solid #d0d5e8;',
+            a:    'background:#ddeeff;color:#1a6ab5;border:1.5px solid #90bce8;',
+            b:    'background:#ffeaea;color:#b51a1a;border:1.5px solid #e89090;',
+        };
+        chip.className = 'group-chip';
+        chip.style.cssText = `padding:8px 14px;border-radius:24px;cursor:pointer;
+            font-size:13px;font-weight:600;user-select:none;
+            transition:background 0.18s,transform 0.1s;
+            display:flex;align-items:center;gap:6px;
+            ${styles[group || 'none']}`;
     }
 
     function autoAssign() {
+        const groupLabel = { none: '⬜ Sin asignar', a: '🔵 Sala A', b: '🔴 Sala B' };
         let idx = 0;
         _groupParticipants.forEach(p => {
             if (p.isHost) { p.group = 'none'; return; }
@@ -527,8 +633,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (box) box.dataset.groupAssign = p.group;
             const chip = document.getElementById(`gchip-${p.socket_id}`);
             if (chip) updateChipStyle(chip, p.group);
+            const lbl = document.getElementById(`gchip-label-${p.socket_id}`);
+            if (lbl) lbl.textContent = groupLabel[p.group];
         });
-        renderGroupParticipants();
     }
 
     function sendToGroups() {
@@ -539,24 +646,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const groupB = _groupParticipants.filter(p => p.group === 'b').map(p => p.socket_id);
 
         if (!groupA.length && !groupB.length) {
-            showToast('Asigna al menos un participante a un grupo', 'warning'); return;
+            showToast('Asigna al menos un participante a un grupo', 'warning');
+            return;
         }
 
         const roomA = ROOM_ID + '_ga';
         const roomB = ROOM_ID + '_gb';
 
-        socket.emit('create_breakout_rooms', {
-            room: ROOM_ID,
-            groups: [
-                { room_id: roomA, name: nameA, members: groupA },
-                { room_id: roomB, name: nameB, members: groupB },
-            ]
-        });
+        // Solo enviar grupos que tengan miembros
+        const groups = [];
+        if (groupA.length) groups.push({ room_id: roomA, name: nameA, members: groupA });
+        if (groupB.length) groups.push({ room_id: roomB, name: nameB, members: groupB });
 
-        showToast(`Enviando a grupos: ${nameA} (${groupA.length}) y ${nameB} (${groupB.length})`, 'success');
+        socket.emit('create_breakout_rooms', { room: ROOM_ID, groups });
+
+        const resumen = groups.map(g => `${g.name} (${g.members.length})`).join(' y ');
+        showToast(`✅ Enviando: ${resumen}`, 'success');
         closeGroupModal();
 
-        document.querySelectorAll('.participant').forEach(b => delete b.dataset.groupAssign);
+        document.querySelectorAll('#avi-participants .participant').forEach(b => delete b.dataset.groupAssign);
     }
 
     function injectGroupButton() {
@@ -576,25 +684,39 @@ document.addEventListener('DOMContentLoaded', () => {
             if (statsBtn) toolbar.insertBefore(btn, statsBtn);
             else toolbar.appendChild(btn);
         }
-        const dock = document.getElementById('collab-dock');
-        if (dock && !document.getElementById('btn-breakout')) dock.prepend(btn);
     }
 
-    // ── MODAL DE CONFIRMACIÓN — breakout rooms ───────────────────────────────
+    // ── MODAL DE CONFIRMACIÓN — breakout rooms ────────────────────────────
     function showBreakoutConfirm(roomName, roomId) {
         const prev = document.getElementById('breakout-confirm-modal');
         if (prev) prev.remove();
 
         const modal = document.createElement('div');
         modal.id = 'breakout-confirm-modal';
-        modal.className = 'modal-backdrop flex-center';
-        modal.className = 'modal-backdrop flex-center';
-        
-        const box = document.createElement('div');
-        box.className = 'modal-dialog-confirm';
+        // Estilos inline para garantizar visibilidad sin depender de CSS externo
+        Object.assign(modal.style, {
+            display: 'flex',
+            position: 'fixed',
+            top: '0', left: '0', right: '0', bottom: '0',
+            zIndex: '99999',
+            background: 'rgba(0,0,0,0.80)',
+            backdropFilter: 'blur(6px)',
+            alignItems: 'center',
+            justifyContent: 'center'
+        });
 
-        // Evitar múltiples inyecciones del style interno de la animación. 
-        // Eliminado, ya que bcSlide ahora está en sala.css
+        const box = document.createElement('div');
+        Object.assign(box.style, {
+            background: 'rgba(15,17,30,0.98)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '20px',
+            padding: '32px 36px',
+            maxWidth: '420px',
+            width: '90%',
+            textAlign: 'center',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.7)',
+            animation: 'bcSlide .25s ease'
+        });
 
         box.innerHTML = `
             <div style="font-size:42px;margin-bottom:12px;">🏫</div>
@@ -604,12 +726,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <strong style="color:#7c9eff;font-size:16px;">${roomName}</strong>
             </p>
             <div style="display:flex;gap:12px;justify-content:center;">
-                <button id="bc-accept" class="btn-accept-modal">
-                    ✓ Entrar
-                </button>
-                <button id="bc-reject" class="btn-reject-modal">
-                    ✕ Quedarme
-                </button>
+                <button id="bc-accept" style="padding:12px 28px;border-radius:12px;border:none;cursor:pointer;background:linear-gradient(135deg,#4a90d9,#7c4fd4);color:#fff;font-size:14px;font-weight:700;flex:1;max-width:160px;">✓ Entrar (30s)</button>
+                <button id="bc-reject" style="padding:12px 28px;border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);font-size:14px;font-weight:600;flex:1;max-width:160px;">✕ Quedarme</button>
             </div>
         `;
 
@@ -660,8 +778,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('✅ Socket conectado. ID:', socket.id);
             if (_joined) {
                 showToast('Conexión restaurada ✓', 'success');
-                // FIX: destruir TODOS los workers de BgSeg antes de limpiar DOM
-                // Evita workers zombi que acaparan CPU tras reconexión
                 destroyAllBgSeg();
                 document.querySelectorAll('.participant').forEach(b => b.remove());
                 mySocketId = null;
@@ -680,7 +796,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('❌ Error de conexión Socket.IO:', err.message);
         });
 
-        // ── Eventos de sala ───────────────────────────────────────────────
         socket.on('joined_as_host', d => {
             showToast(d.message, 'success');
             createMyBox(socket.id, USER_NAME, true);
@@ -732,7 +847,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const el = document.getElementById(`participant-${d.socket_id}`);
             if (!el) return;
             loadBgSegModule(() => {
-                // FIX: re-verificar que el elemento siga en el DOM
                 const elNow = document.getElementById(`participant-${d.socket_id}`);
                 if (!elNow) return;
                 window.BgSegModule.setupViewer(elNow, d.socket_id);
@@ -770,12 +884,42 @@ document.addEventListener('DOMContentLoaded', () => {
             handSound.currentTime = 0; handSound.play().catch(() => { });
             showToast(`${d.username} levantó la mano ✋`);
         });
+
+        // FIX PRINCIPAL: toggle_visibility_event usa style.display en todos los clientes
+        // Un solo mecanismo, sin mezcla de classList/style.display
         socket.on('toggle_visibility_event', d => {
             const box = document.getElementById(`participant-${d.target_id}`);
-            if (box) { box.classList.toggle('hidden-el', !d.visible); reorganizeLayout(); }
+            if (box) {
+                box.style.display = d.visible ? '' : 'none';
+                reorganizeLayout();
+            }
             const btn = document.getElementById(`btn-vis-${d.target_id}`);
-            if (btn) { btn.innerHTML = d.visible ? '👁️' : '🚫'; btn.style.background = d.visible ? '#fff' : '#ffebee'; btn.style.color = d.visible ? '#333' : '#c62828'; btn.style.borderColor = d.visible ? '#ccc' : '#ef9a9a'; }
+            if (btn) {
+                btn.innerHTML = d.visible ? '👁️' : '🚫';
+                btn.style.background = d.visible ? '#fff' : '#ffebee';
+                btn.style.color = d.visible ? '#333' : '#c62828';
+                btn.style.borderColor = d.visible ? '#ccc' : '#ef9a9a';
+            }
+            updateParticipantsListUI();
         });
+
+        // ── WYSIWYS: ocultar/mostrar TODOS los videos para todos ──────────
+        socket.on('toggle_all_videos_event', d => {
+            const show = d.visible;
+            document.querySelectorAll('.participant').forEach(box => {
+                box.style.display = show ? '' : 'none';
+            });
+            videosHidden = !show;
+            reorganizeLayout();
+            // Actualizar botón local
+            if (btnToggleVideosBtn) {
+                btnToggleVideosBtn.innerHTML = show ? '📹 Videos' : '🙈 Videos';
+                btnToggleVideosBtn.classList.toggle('active', !show);
+            }
+            showToast(show ? 'Videos visibles 📹' : 'Videos ocultos 🙈', show ? 'success' : 'info');
+            updateParticipantsListUI();
+        });
+
         socket.on('chat_message', d => {
             const isMine = d.username === USER_NAME;
             const div = document.createElement('div');
@@ -788,20 +932,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (chatBadge) { chatBadge.innerText = (parseInt(chatBadge.innerText) || 0) + 1; chatBadge.classList.remove('hidden'); }
             }
         });
+
         socket.on('room_info', d => {
             const container = usersList || viewUsers; if (!container) return;
             let html = `<div style="padding:12px 15px;border-bottom:1px solid #ddd;font-weight:bold;background:#f8f9fa;position:sticky;top:0;">Conectados (${d.total})</div><ul style="list-style:none;padding:0;margin:0;">`;
+
             const row = (p, isHostRow) => {
-                const uid = p.socket_id || p.sid, box = document.getElementById(`participant-${uid}`), hidden = box && box.classList.contains('hidden-el');
-                const bS = hidden ? 'background:#ffebee;color:#c62828;border:1px solid #ef9a9a;' : 'background:#fff;color:#333;border:1px solid #ccc;';
+                const uid = p.socket_id || p.sid;
+                const box = document.getElementById(`participant-${uid}`);
+                // FIX: usar solo style.display para determinar visibilidad
+                const hidden = box && box.style.display === 'none';
+                const bS = hidden
+                    ? 'background:#ffebee;color:#c62828;border:1px solid #ef9a9a;padding:5px 10px;border-radius:4px;cursor:pointer;'
+                    : 'background:#fff;color:#333;border:1px solid #ccc;padding:5px 10px;border-radius:4px;cursor:pointer;';
+
+                const eyeBtn = `<button id="btn-vis-${uid}" style="${bS}" onclick="window.toggleLocalBox('${uid}')" title="${hidden ? 'Mostrar video' : 'Ocultar video'}">${hidden ? '🚫' : '👁️'}</button>`;
+
                 return `<li style="padding:12px 15px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;background:#fff;">
                     <div><span style="margin-right:8px;font-size:1.2em;">${isHostRow ? '👑' : '👤'}</span><b>${p.username}</b></div>
                     <div style="display:flex;gap:5px;">
-                        <button id="btn-vis-${uid}" style="${bS}padding:5px 10px;border-radius:4px;cursor:pointer;" onclick="requestToggleVisibility('${uid}')">${hidden ? '🚫' : '👁️'}</button>
+                        ${eyeBtn}
                         <button style="background:#fff;color:#333;border:1px solid #ccc;padding:5px 10px;border-radius:4px;cursor:pointer;" onclick="copyVdoLink('${p.username}')">🔗</button>
                     </div>
                 </li>`;
             };
+
             if (d.host) html += row(d.host, true);
             d.participants.forEach(p => { if (!d.host || p.socket_id !== d.host.sid) html += row(p, false); });
             html += '</ul>';
@@ -810,11 +965,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── Herramientas ──────────────────────────────────────────────────────
-    const skipIds = ['btn-chat', 'btn-share', 'btn-hand', 'btn-reactions', 'btn-stats', 'btn-toggle-tools', 'btn-breakout', 'btn-bg'];
+    const skipIds = ['btn-chat', 'btn-share', 'btn-hand', 'btn-reactions', 'btn-stats', 'btn-toggle-tools', 'btn-breakout', 'btn-bg', 'btn-toggle-videos'];
 
     tools.forEach(b => {
-        b.classList.toggle('hidden-el');
-
+        // FIX: eliminado el b.classList.toggle('hidden-el') que ocultaba todos los botones al cargar
         b.addEventListener('click', () => {
             if (skipIds.includes(b.id)) return;
             tools.forEach(t => t.classList.remove('active'));
@@ -865,7 +1019,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (btnShare) btnShare.addEventListener('click', e => {
         e.preventDefault();
-        navigator.clipboard.writeText(`${window.location.origin}/join?room=${ROOM_ID}`).then(() => showToast('Link de sala copiado 🔗'));
+        const link = `${window.location.origin}/join?room=${ROOM_ID}`;
+        navigator.clipboard.writeText(link).then(() => {
+            const originalHTML = btnShare.innerHTML;
+            const originalStyle = btnShare.getAttribute('style') || '';
+            btnShare.innerHTML = 'Link copiado';
+            btnShare.style.background = '#27ae60';
+            btnShare.style.color = '#fff';
+            btnShare.style.transform = 'scale(1.05)';
+            btnShare.disabled = true;
+            setTimeout(() => {
+                btnShare.innerHTML = originalHTML;
+                btnShare.setAttribute('style', originalStyle);
+                btnShare.disabled = false;
+            }, 2000);
+            showToast('Link de sala copiado 🔗', 'success');
+        }).catch(() => prompt('Copia este link:', link));
     });
 
     function switchTab(mode) {
@@ -909,6 +1078,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnStats) btnStats.addEventListener('click', () => { statsModal.classList.remove('hidden'); fetch(`/summary/${ROOM_ID}`).then(r => r.json()).then(d => renderChart(processData(d))); });
     if (btnCloseStats) btnCloseStats.addEventListener('click', () => statsModal.classList.add('hidden'));
     if (btnToggleTools && dockContainer) btnToggleTools.addEventListener('click', () => dockContainer.classList.toggle('hidden-dock'));
+
+
 });
 
 function abrirHerramienta(t) { alert('Herramienta: ' + t); }

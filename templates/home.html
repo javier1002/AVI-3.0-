@@ -1,16 +1,235 @@
 <!--Herencia de Plantillas - Jinja2-->
 {% extends "panel-header.html" %}
 {% block content %}
-<div class='bienvenida'>
-    <h1 class="display-4">¡Grupo IDIS - AVI 3.0!</h1>
-        <div class="introduccion_container">
-            <h2 class="subtitulo">Bienvenido a tu Aula Inmersiva</h2>
-        </div>
+<!-- Estilos específicos para la vista unificada con fondo blanco y diseño limpio -->
+<style>
+    /* Forzar fondo blanco en el body para esta página */
+    body {
+        background: #ffffff !important;
+        background-attachment: scroll !important;
+        color: #333333 !important;
+    }
 
-    <hr class="my-4">
-    <p>para crear una sala dale click al boton Crear.</p>
-    <p class="lead">
-        <a class="btn-lg" href="{{ url_for('main.crea_sala') }}" role="button"> 📹Crear </a>
-    </p>
+    .unified-container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 60px;
+        margin-top: 40px;
+        padding: 20px 0;
+    }
+    
+    .welcome-section {
+        flex: 1.2;
+        text-align: left;
+    }
+    
+    .welcome-title {
+        font-size: 3.8rem;
+        font-weight: 800;
+        margin-bottom: 15px;
+        color: #1e1b4b; /* Letras oscuras para legibilidad excelente en fondo blanco */
+        letter-spacing: -1.5px;
+        line-height: 1.1;
+    }
+    
+    .welcome-subtitle {
+        font-size: 2.1rem;
+        font-weight: 600;
+        margin-bottom: 25px;
+        color: #4f46e5; /* Color índigo elegante */
+    }
+    
+    .welcome-desc {
+        font-size: 1.2rem;
+        line-height: 1.7;
+        color: #475569; /* Gris pizarra legible */
+        max-width: 580px;
+        margin-bottom: 0;
+    }
+    
+    .form-section {
+        flex: 0.8;
+        display: flex;
+        justify-content: center;
+    }
+    
+    .card-container {
+        background: #f8fafc; /* Fondo gris muy claro para contrastar sobre el fondo blanco */
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+        width: 100%;
+        max-width: 440px;
+        border: 1px solid #e2e8f0;
+        color: #333333;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .card-container:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12);
+    }
+    
+    .card-container h2 {
+        color: #1e1b4b;
+        font-weight: 700;
+        margin-bottom: 25px;
+        font-size: 1.85rem;
+        text-shadow: none;
+        text-align: center;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+        text-align: left;
+    }
+    
+    .form-group label {
+        color: #4338ca;
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+    
+    .form-group input {
+        width: 100%;
+        border: 2px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 12px 15px;
+        font-size: 1rem;
+        box-sizing: border-box;
+        transition: all 0.3s ease;
+        color: #1e293b;
+        background-color: #ffffff;
+    }
+    
+    .form-group input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+        outline: none;
+    }
+    
+    .btn-primary {
+        width: 100%;
+        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 14px;
+        color: white; /* Letras blancas para contraste óptimo sobre el botón azul/púrpura */
+        font-size: 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        transition: all 0.3s ease;
+        display: block;
+        margin-top: 10px;
+    }
+    
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+    }
+    
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+    
+    hr {
+        margin: 25px 0;
+        border: 0;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .btn-google {
+        width: 100%;
+        border: 2px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #475569;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    .btn-google:hover {
+        background-color: #f8fafc;
+        border-color: #cbd5e1;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    @media (max-width: 991px) {
+        .unified-container {
+            flex-direction: column;
+            text-align: center;
+            gap: 40px;
+            margin-top: 10px;
+        }
+        .welcome-section {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+</style>
+
+<div class="unified-container">
+    <!-- Sección de Bienvenida (Izquierda) -->
+    <div class="welcome-section">
+        <h1 class="welcome-title">¡Grupo IDIS - AVI 3.0!</h1>
+        <h2 class="welcome-subtitle">Tu Aula Inmersiva Interactiva</h2>
+        
+        <p class="welcome-desc">
+            Una plataforma de colaboración y aprendizaje en tiempo real. Configura tu sala al instante para interactuar a través de video inmersivo, herramientas interactivas, y gestos inteligentes.
+        </p>
+    </div>
+    
+    <!-- Sección del Formulario de Creación (Derecha) -->
+    <div class="form-section">
+        <div class="card-container">
+            <h2>Configurar Sala</h2>
+            
+            <form action="{{ url_for('main.ir_sala') }}" method="POST">
+                <div class="form-group">
+                    <label for="username">Nombre (Host):</label>
+                    <input type="text" id="username" name="username" placeholder="Tu nombre" required autocomplete="off">
+                </div>
+                
+                <div class="form-group">
+                    <label for="roomId">Nombre de la Sala:</label>
+                    <input type="text" pattern="[^\s]+" id="roomId" name="roomId" value="{{ room_id }}" placeholder="Ej: Conferencia" required autocomplete="off">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Contraseña (Opcional):</label>
+                    <input type="password" id="password" name="password" placeholder="Contraseña de la sala">
+                </div>
+                
+                <button type="submit" class="btn-primary">
+                    Entrar como HOST 🚀
+                </button>
+            </form>
+            
+            <hr>
+            
+            <button type="button" id="btn-google-calendar" class="btn-google">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg"
+                     width="20" alt="Calendar">
+                Agendar en Google Calendar
+            </button>
+        </div>
+    </div>
 </div>
+
+<script src="{{ url_for('static', filename='js/crea_sala.js') }}"></script>
 {% endblock %}

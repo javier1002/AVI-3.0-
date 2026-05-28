@@ -221,6 +221,9 @@ transform: scale(1.2);
     align-items: center;
     justify-content: center;
 }
+.modal-backdrop.visible {
+    display: flex !important;
+}
 
 .modal-dialog-group {
     background: #0f1021;
@@ -413,3 +416,16 @@ transform: scale(1.2);
     background: transparent !important;
     pointer-events: none;
 }
+
+/* ── Botón toggle videos ─────────────────────────────────────────────────── */
+#btn-toggle-videos {
+    transition: background 0.25s, color 0.25s, border-color 0.25s, transform 0.15s;
+}
+#btn-toggle-videos:hover {
+    transform: translateY(-1px) scale(1.03);
+}
+
+/* ── Feedback botón compartir ────────────────────────────────────────────── */
+#btn-share {
+    transition: background 0.2s, color 0.2s, transform 0.15s;
+}

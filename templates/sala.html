@@ -3,6 +3,7 @@
 {% block head_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dock_colaborativo.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sala.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 {% endblock %}
 
@@ -118,7 +119,7 @@
 <script>
     const ROOM_ID = "{{ room }}";
     const USER_NAME = "{{ username|default('Invitado') }}";
-    const IS_HOST = {{ 'true' if is_host else 'false' }};
+    const IS_HOST = {% if is_host %}true{% else %} false{% endif %};
 </script>
 
 <script src="{{ url_for('static', filename='js/sala_socket.js') }}"></script>

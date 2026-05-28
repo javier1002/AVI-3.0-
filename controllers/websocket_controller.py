@@ -169,7 +169,16 @@ def init_socket_handlers(socketio):
         room = data.get('room')
         if room:
             emit('toggle_visibility_event', {'target_id': data.get('target_id'),
-                                             'visible': data.get('visible')}, to=room)
+                                             'visible': data.get('visible')},
+                 to=room, include_self=True)
+
+    @socketio.on('toggle_all_videos')
+    def handle_toggle_all_videos(data):
+        room = data.get('room')
+        visible = data.get('visible', True)
+        if room:
+            emit('toggle_all_videos_event', {'visible': visible},
+                 to=room, include_self=True)
 
     @socketio.on('chat_message')
     def handle_chat_message(data):
