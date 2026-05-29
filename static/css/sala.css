@@ -45,6 +45,8 @@ font-weight: normal;
     position: absolute;
     width: 100%; height: 100%;
     border: 0;
+    display: block;
+    /* object-fit no aplica a iframes, pero cover en VDO.ninja se logra con &cover en la URL */
     z-index: 1 !important;
 }
 
@@ -54,6 +56,8 @@ font-weight: normal;
     inset: 0;
     z-index: 50 !important;
     pointer-events: none;
+    /* El canvas de pizarra va por encima del fondo pero debajo de los participantes */
+    background: transparent;
 }
 #avi-whiteboard.drawing-mode {
     pointer-events: auto;
@@ -74,6 +78,7 @@ font-weight: normal;
     position: absolute;
     inset: 0;
     z-index: 200 !important;
+    /* pointer-events: none aqui, pero los .participant individuales si tienen events */
     pointer-events: none;
 }
 
@@ -90,6 +95,7 @@ font-weight: normal;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 8px 16px rgba(0,0,0,0.4);
     transition: border-color 0.2s;
+    /* Los participantes siempre por encima del fondo compartido */
 }
 .participant:hover {
 border-color: #777;
@@ -402,8 +408,8 @@ transform: scale(1.2);
     position: absolute !important;
     top: 0;
     left: 0;
-    z-index: 1;
-    background: transparent;
+    /* z-index fijo por #avi-whiteboard: 50 — encima del fondo, debajo de participantes */
+    background: transparent !important;
 }
 
 .bg-segmentation-layer {

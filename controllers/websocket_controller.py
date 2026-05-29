@@ -375,3 +375,31 @@ def init_socket_handlers(socketio):
         if room:
             data['id'] = request.sid
             emit('wand_remote_update', data, to=room, include_self=False)
+
+    @socketio.on('bg_share_start')
+    def handle_bg_share_start(data):
+        """
+        Cualquier participante emite este evento al abrir la ventana de compartir fondo.
+        El servidor lo retransmite a TODA la sala (incluido el emisor) para que todos
+        recarguen el iframe del fondo VDO.ninja y vean el stream nuevo.
+        """
+        room = data.get('room')
+        if room:
+            emit('bg_share_event', {
+                'sharer':   data.get('sharer', 'Alguien'),
+                'bg_room':  data.get('bg_room', room + '_bg'),
+            }, to=room, include_self=True)
+            logger.info(f"[bg_share_start] {data.get('sharer')} comparte fondo en {room}")
+
+    @socketio.on('bg_share_stop')
+    def handle_bg_share_stop(data):
+        """
+        Emitido cuando el usuario cierra la ventana de compartir fondo.
+        Notifica a la sala para que oculten/muestren el fondo según corresponda.
+        """
+        room = data.get('room')
+        if room:
+            emit('bg_share_stopped', {
+                'sharer': data.get('sharer', 'Alguien'),
+            }, to=room, include_self=True)
+            logger.info(f"[bg_share_stop] {data.get('sharer')} dejó de compartir fondo en {room}")

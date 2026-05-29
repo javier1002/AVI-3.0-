@@ -870,6 +870,31 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast(`✅ Grupos creados: ${d.groups.map(g => g.name).join(', ')}`, 'success');
         });
 
+        // ── Fondo compartido — todos recargan el iframe ──────────────────────
+        socket.on('bg_share_event', d => {
+            const bgIframe = document.getElementById('bg-iframe');
+            if (bgIframe) {
+                // Forzar recarga del iframe para que VDO.ninja detecte el nuevo stream
+                const currentSrc = bgIframe.src;
+                bgIframe.src = '';
+                setTimeout(() => {
+                    bgIframe.src = currentSrc;
+                }, 300);
+                // Mostrar el contenedor de fondo en caso de estar oculto
+                const bgDiv = document.getElementById('avi-background');
+                if (bgDiv) bgDiv.style.display = '';
+            }
+            if (d.sharer !== USER_NAME) {
+                showToast(`📺 ${d.sharer} comparte su pantalla al fondo`, 'info');
+            }
+        });
+
+        socket.on('bg_share_stopped', d => {
+            if (d.sharer !== USER_NAME) {
+                showToast(`${d.sharer} dejó de compartir el fondo`, 'info');
+            }
+        });
+
         socket.on('user_left', d => { removeParticipant(d.socket_id); showToast(`${d.username} ha salido.`); });
         socket.on('host_left', d => { removeParticipant(d.socket_id); showToast('Host desconectado.', 'warning'); });
         socket.on('draw_stroke', d => drawLine(d.x0, d.y0, d.x1, d.y1, d.mode, false));
@@ -989,15 +1014,64 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ── BOTÓN FONDO ───────────────────────────────────────────────────────
+    // ── BOTÓN FONDO — compartir pantalla visible para TODOS ───────────────
+    let _bgShareWindow = null;       // ventana VDO.ninja de push
+    let _bgShareActive = false;      // ¿estoy compartiendo yo?
+
     if (btnBg) {
         btnBg.addEventListener('click', () => {
-            const bgRoom = ROOM_ID + '_bg';
-            const bgPushUrl = `https://vdo.ninja/?room=${bgRoom}&push&autostart&screenshare&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9`;
-            window.open(bgPushUrl, 'FondoShare', 'width=800,height=600,menubar=no,toolbar=no,location=no');
-            showToast('Se abrió la ventana para compartir Pantalla/OBS al fondo', 'success');
+            if (_bgShareActive) {
+                // ── Detener compartición ────────────────────────────────────
+                if (_bgShareWindow && !_bgShareWindow.closed) _bgShareWindow.close();
+                _bgShareWindow = null;
+                _bgShareActive = false;
+                btnBg.classList.remove('active');
+                btnBg.innerHTML = '📺 Fondo';
+                socket.emit('bg_share_stop', { room: ROOM_ID, sharer: USER_NAME });
+                showToast('Dejaste de compartir el fondo', 'info');
+            } else {
+                // ── Iniciar compartición de pantalla al fondo ───────────────
+                const bgRoom = ROOM_ID + '_bg';
+                // &screenshare → VDO.ninja pide compartir pantalla directamente
+                // &push        → sube el stream a la sala bgRoom
+                const bgPushUrl = `https://vdo.ninja/?room=${bgRoom}` +
+                    `&push&autostart&screenshare` +
+                    `&videobitrate=8000&framerate=30&codec=vp9`;
+
+                _bgShareWindow = window.open(
+                    bgPushUrl, 'FondoShare',
+                    'width=900,height=650,menubar=no,toolbar=no,location=no'
+                );
+
+                // Detectar cierre de ventana y notificar a la sala
+                const _winCheck = setInterval(() => {
+                    if (_bgShareWindow && _bgShareWindow.closed) {
+                        clearInterval(_winCheck);
+                        if (_bgShareActive) {
+                            _bgShareActive = false;
+                            btnBg.classList.remove('active');
+                            btnBg.innerHTML = '📺 Fondo';
+                            socket.emit('bg_share_stop', { room: ROOM_ID, sharer: USER_NAME });
+                            showToast('Compartición de fondo finalizada', 'info');
+                        }
+                    }
+                }, 1500);
+
+                _bgShareActive = true;
+                btnBg.classList.add('active');
+                btnBg.innerHTML = '🛑 Detener fondo';
+
+                // Notificar a TODOS (incluido yo mismo) → recarga iframe del fondo
+                socket.emit('bg_share_start', {
+                    room: ROOM_ID,
+                    sharer: USER_NAME,
+                    bg_room: bgRoom,
+                });
+                showToast('¡Compartiendo pantalla al fondo para todos!', 'success');
+            }
         });
     }
+
 
     if (btnClear) btnClear.addEventListener('click', () => { if (confirm('¿Borrar pizarra para todos?')) socket.emit('clear_board', { room: ROOM_ID }); });
 

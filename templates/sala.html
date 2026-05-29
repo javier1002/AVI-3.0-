@@ -9,10 +9,12 @@
 
 {% block content %}
 {% set bgRoom = room ~ "_bg" %}
-{% set bgPushUrl = "https://vdo.ninja/?room=" ~ bgRoom ~
-"&push&autostart&webcam&quality=0&videobitrate=6000&width=1920&height=1080&framerate=30&codec=vp9" %}
+{#
+   bgPushUrl → abre la ventana de compartir pantalla (solo el que comparte la ve)
+   bgViewUrl → iframe de fondo visible para TODOS — sin &transparent para que se vea el video
+#}
 {% set bgViewUrl = "https://vdo.ninja/?room=" ~ bgRoom ~
-"&scene&autoplay&muted&cleanoutput&noheader&nocontrols&transparent&quality=0" %}
+"&scene&autoplay&muted&cleanoutput&noheader&nocontrols&cover" %}
 
 <h1>Sala: {{ room }} <small>({{ username }}{% if is_host %} - Host{% endif %})</small></h1>
 
@@ -79,14 +81,21 @@
     </div>
 </div>
 
-{# Escenario principal #}
+{# Escenario principal — capas en orden de z-index ascendente:
+   1. #avi-background  (z:1)  — iframe VDO.ninja fondo compartido
+   2. #avi-whiteboard  (z:50) — pizarra colaborativa
+   3. #magic-canvas   (z:100)— varita mágica IA
+   4. #avi-participants(z:200)— cajas de video de participantes (ENCIMA de todo)
+#}
 <div id="avi-stage">
     <div id="avi-background" class="avi-layer">
-        <iframe src="{{ bgViewUrl }}" allow="autoplay" style="width:100%;height:100%;border:0;"></iframe>
+        {# id="bg-iframe" permite recargarlo vía JS cuando alguien empieza a compartir #}
+        <iframe id="bg-iframe" src="{{ bgViewUrl }}" allow="autoplay; camera; microphone"
+                style="width:100%;height:100%;border:0;display:block;object-fit:cover;"></iframe>
     </div>
-    <div id="avi-participants" class="avi-layer"></div>
     <canvas id="avi-whiteboard"></canvas>
     <canvas id="magic-canvas"></canvas>
+    <div id="avi-participants" class="avi-layer"></div>
 </div>
 
 {# Modal de estadísticas (solo host) #}

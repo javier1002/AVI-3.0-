@@ -161,12 +161,17 @@ button.active {
     isolation: isolate;
 }
 
+/* ── Capas del escenario (z-index ascendente) ────────────────────────── */
+/* z:1   → #avi-background  (iframe fondo compartido)   */
+/* z:50  → #avi-whiteboard  (canvas pizarra)            */
+/* z:100 → #magic-canvas    (varita IA)                 */
+/* z:200 → #avi-participants (cajas de video — encima)  */
 .avi-layer { position: absolute; inset: 0; }
 
 #avi-background { position: absolute; inset: 0; z-index: 1 !important; pointer-events: none; }
-#avi-background iframe { z-index: 1 !important; }
+#avi-background iframe { width: 100%; height: 100%; border: 0; display: block; z-index: 1 !important; }
 
-#avi-whiteboard { position: absolute; inset: 0; z-index: 50 !important; pointer-events: none; }
+#avi-whiteboard { position: absolute; inset: 0; z-index: 50 !important; pointer-events: none; background: transparent; }
 #avi-whiteboard.drawing-mode { pointer-events: auto; cursor: crosshair; }
 
 #magic-canvas {
