@@ -14,10 +14,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ctx = canvas.getContext('2d');
 
-    // Video oculto para MediaPipe
+    // Video oculto para MediaPipe — dentro de un contenedor fijo para no afectar el layout
+    const _wandContainer = document.createElement('div');
+    _wandContainer.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;pointer-events:none;z-index:-9999;visibility:hidden;';
+    document.body.appendChild(_wandContainer);
+
     const videoInput = document.createElement('video');
-    videoInput.className = 'hidden-el';
-    document.body.appendChild(videoInput);
+    videoInput.setAttribute('playsinline', '');
+    videoInput.setAttribute('muted', '');
+    _wandContainer.appendChild(videoInput);
 
     // --- VARIABLES DE ESTADO ---
     let isWandActive = false;
